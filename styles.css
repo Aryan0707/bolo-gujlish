@@ -1,0 +1,557 @@
+/* ================================================================
+   BOLO GUJLISH — flat dark, matched to Google Translate's own
+   dark theme: near-black surface, one blue accent, hairline
+   dividers, no background art, no blur. Variable NAMES are kept
+   from the earlier bandhani palette so every rule below still
+   works untouched — only the values they resolve to have changed.
+   ================================================================ */
+
+:root{
+  --ink:        #131314;   /* page background */
+  --ink-2:      #1E1F20;   /* a raised surface: cards, pills, rows */
+
+  --kesari:     #A8C7FA;   /* the one accent now — Google's dark-theme blue */
+  --kesari-hi:  #D3E3FD;   /* lighter blue, for hover/emphasis text */
+  --rani:       #A8C7FA;   /* no second hue — collapses onto the same blue */
+
+  --mor:        #81C995;   /* status green, kept as a semantic colour */
+  --mor-lo:     #1E4620;
+  --chuno:      #F28B82;   /* status red, kept as a semantic colour */
+  --gem:        #A8C7FA;   /* shares the accent rather than a separate cyan */
+
+  --cotton:     #E8EAED;
+  --cotton-2:   #C4C7C5;
+  --cotton-3:   #9AA0A6;
+  --cotton-4:   #5F6368;
+
+  --glass:      rgba(255,255,255,.06);
+  --glass-2:    rgba(255,255,255,.10);
+  --glass-3:    rgba(255,255,255,.14);
+  --edge:       rgba(255,255,255,.14);
+  --edge-hi:    rgba(255,255,255,.26);
+
+  /* flat UI is sans throughout — no editorial serif accent */
+  --serif: ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --sans: ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono: ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,monospace;
+  --guj: "Gujarati Sangam MN","Nirmala UI","Shruti","Noto Sans Gujarati","Gujarati MT",sans-serif;
+
+  --r-m: 16px;
+  --r-l: 22px;
+  --r-xl: 28px;
+  --shadow: 0 8px 24px -12px rgba(0,0,0,.6);
+
+  --rail: 232px;
+}
+
+*{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+
+body{
+  margin:0;
+  min-height:100dvh;
+  background:var(--ink);
+  color:var(--cotton);
+  font-family:var(--sans);
+  font-size:16px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+/* ---------- background -------------------------------------------
+   Google's dark surface is flat — no art, no texture, no vignette.
+   The dye/resist/grain elements stay in index.html (harmless) but
+   are switched off here rather than ripping out markup for it. */
+
+.dye, .resist, .grain{ display:none; }
+
+
+/* ---------- app shell ----------------------------------------- */
+
+.shell{ position:relative; z-index:2; display:flex; min-height:100dvh; }
+
+/* left rail (desktop) */
+.rail{
+  position:sticky; top:0; align-self:flex-start;
+  width:var(--rail); flex:none; height:100dvh;
+  padding:22px 14px;
+  display:none; flex-direction:column; gap:4px;
+  border-right:1px solid var(--edge);
+  background:var(--ink);
+}
+.brand{
+  font-family:var(--serif); font-size:25px; letter-spacing:-.015em;
+  padding:6px 12px 20px; line-height:1.1;
+}
+.brand em{
+  font-style:italic;
+  background:linear-gradient(96deg, var(--kesari-hi), var(--kesari) 45%, var(--rani));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.nav{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 12px; border-radius:14px;
+  border:1px solid transparent; background:none;
+  color:var(--cotton-2); font:600 13.5px/1 var(--sans);
+  letter-spacing:.06em; text-transform:uppercase; cursor:pointer;
+  transition:background .18s, color .18s, border-color .18s;
+  width:100%; text-align:left;
+}
+.nav .ic{ font-size:17px; line-height:1; width:22px; text-align:center; }
+.nav:hover{ background:var(--glass); color:var(--cotton); }
+.nav.on{
+  background:rgba(168,199,250,.16); border-color:transparent; color:var(--kesari-hi);
+}
+.nav:disabled{ opacity:.3; cursor:not-allowed; }
+
+/* centre column */
+.main{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; align-items:center; padding:0 16px 96px; }
+.col{ width:100%; max-width:520px; display:flex; flex-direction:column; flex:1; }
+
+@media (min-width:900px){ .rail{ display:flex; } }
+
+/* bottom tabs (mobile) */
+.tabs{
+  position:fixed; left:0; right:0; bottom:0; z-index:20;
+  display:flex; justify-content:space-around;
+  padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));
+  border-top:1px solid var(--edge);
+  background:var(--ink);
+}
+.tab{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:3px;
+  padding:6px 2px; border:0; background:none; cursor:pointer;
+  color:var(--cotton-4); font:600 9.5px/1 var(--mono);
+  letter-spacing:.12em; text-transform:uppercase;
+}
+.tab .ic{ font-size:19px; line-height:1; }
+.tab.on{ color:var(--kesari); }
+.tab:disabled{ opacity:.3; }
+@media (min-width:900px){ .tabs{ display:none; } .main{ padding-bottom:32px; } }
+
+
+/* ---------- glass primitives ---------------------------------- */
+
+.glass{
+  background:var(--ink-2); border:1px solid var(--edge); border-radius:var(--r-m);
+}
+.pad{ padding:16px 18px; }
+
+
+/* ---------- top bar ------------------------------------------- */
+
+/* Added to the iPhone home screen there is no Safari chrome, so the
+   top bar has to clear the notch itself and the tab bar the home
+   indicator. env() is 0 in a normal browser, so this costs nothing. */
+@media (display-mode: standalone){
+  .top{ padding-top:calc(14px + env(safe-area-inset-top, 0px)); }
+  .rail{ padding-top:calc(22px + env(safe-area-inset-top, 0px)); }
+  .main{ padding-bottom:calc(96px + env(safe-area-inset-bottom, 0px)); }
+  body{ overscroll-behavior-y:none; }   /* no rubber-band bounce */
+}
+
+.top{
+  position:sticky; top:0; z-index:12;
+  width:100%; height:20px;
+}
+
+
+/* ---------- headings ------------------------------------------ */
+
+.hero{ padding:12px 4px 20px; }
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--kesari);
+  display:flex; align-items:center; gap:9px;
+}
+.eyebrow::after{ content:""; flex:1; height:1px; background:linear-gradient(90deg, rgba(168,199,250,.4), transparent); }
+.hero h1{
+  font-family:var(--serif); font-size:clamp(34px,9vw,48px);
+  line-height:.98; margin:14px 0 0; font-weight:400;
+  letter-spacing:-.015em; text-wrap:balance;
+}
+.hero h1 em{
+  font-style:italic;
+  background:linear-gradient(96deg, var(--kesari-hi), var(--kesari) 42%, var(--rani));
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero p{ margin:13px 0 0; max-width:38ch; color:var(--cotton-3); font-size:15px; line-height:1.6; }
+
+
+/* ---------- buttons ------------------------------------------- */
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:9px;
+  width:100%; padding:15px 20px; border-radius:16px; border:1px solid transparent;
+  font:600 15.5px/1 var(--sans); letter-spacing:.01em; cursor:pointer; color:#062E6F;
+  background:var(--kesari);
+  transition:transform .16s cubic-bezier(.2,.9,.3,1), filter .2s;
+}
+.btn:hover:not(:disabled){ filter:brightness(1.06); }
+.btn:active:not(:disabled){ transform:translateY(1px) scale(.99); }
+.btn.ghost{
+  background:var(--glass); color:var(--cotton); border-color:var(--edge);
+}
+.btn.ghost:hover:not(:disabled){ background:var(--glass-2); border-color:var(--edge-hi); filter:none; }
+.btn.sm{ width:auto; padding:10px 16px; font-size:13.5px; border-radius:12px; }
+.btn:disabled{ opacity:.4; cursor:not-allowed; filter:grayscale(.4); }
+
+:where(button,[tabindex],a,input,textarea,select):focus-visible{
+  outline:2px solid var(--kesari-hi); outline-offset:3px;
+}
+
+
+.sidehead{
+  display:flex; align-items:center; justify-content:space-between;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--cotton-4); margin-bottom:10px;
+}
+
+.field{ display:flex; flex-direction:column; gap:7px; margin-bottom:16px; }
+.field label{ font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--cotton-4); }
+.field input, .field select{
+  padding:13px 15px; border-radius:14px; font:inherit; font-size:14.5px;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton);
+}
+.field .hint{ font-size:12.5px; color:var(--cotton-3); line-height:1.55; }
+.warn{
+  padding:14px 16px; border-radius:15px; font-size:13.5px; line-height:1.6;
+  background:rgba(168,199,250,.09); border:1px solid rgba(168,199,250,.3); color:var(--cotton-2);
+}
+.warn b{ color:var(--kesari-hi); }
+.why{ margin:10px 0 16px; font-size:14px; line-height:1.6; color:var(--cotton-2); }
+.why b{ font-family:var(--serif); font-weight:400; font-size:16px; color:var(--cotton); }
+.rowbtns{ display:flex; gap:9px; }
+.rowbtns .btn{ flex:1; }
+.status{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--cotton-3); }
+.dot{ width:8px; height:8px; border-radius:50%; flex:none; background:var(--cotton-4); }
+.dot.on{ background:var(--mor); box-shadow:0 0 10px 1px rgba(47,212,181,.8); }
+.dot.off{ background:var(--cotton-4); }
+.chip{
+  display:inline-flex; align-items:center; padding:3px 9px; border-radius:999px;
+  font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  border:1px solid var(--edge); color:var(--cotton-3);
+}
+.chip.ai{ color:var(--gem); border-color:rgba(91,200,245,.4); }
+
+.trin{
+  width:100%; padding:16px; border-radius:var(--r-m); resize:vertical;
+  font-family:var(--serif); font-size:19px; line-height:1.45;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton);
+}
+.trin::placeholder{ font-family:var(--sans); font-size:15px; color:var(--cotton-4); }
+
+.hintline{ font-size:13px; color:var(--cotton-3); line-height:1.6; margin-top:10px; }
+.hintline b{ color:var(--cotton-2); font-weight:600; }
+
+.typing{ display:inline-flex; gap:4px; align-items:center; }
+.typing i{ width:6px; height:6px; border-radius:50%; background:var(--cotton-4); animation:blip 1.2s infinite; }
+.typing i:nth-child(2){ animation-delay:.18s; }
+.typing i:nth-child(3){ animation-delay:.36s; }
+@keyframes blip{ 0%,60%,100%{ opacity:.25; transform:translateY(0); } 30%{ opacity:1; transform:translateY(-3px); } }
+
+.foot{
+  margin-top:auto; padding:26px 4px 4px; text-align:center;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--cotton-4);
+}
+.foot b{ color:var(--kesari); font-weight:500; }
+
+/* ---------- transitions -------------------------------------------
+   A push-like fade+slide on top-level screen changes (the .swap
+   class app.js re-triggers on every go()), and the same motion for
+   History/Saved opening — nothing here was animated before; both
+   used to just snap into place. */
+.col.swap{ animation:screenIn .26s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes screenIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:none; } }
+
+.panelenter{ animation:panelIn .28s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes panelIn{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{ animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important; }
+}
+
+
+/* ---------- gujlish ai (reply assistant) ------------------------ */
+
+.modesw{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:6px; padding:5px; margin-bottom:14px;
+  border-radius:16px; background:rgba(255,255,255,.045); border:1px solid var(--edge);
+}
+.modeb{
+  padding:11px 8px; border-radius:12px; border:1px solid transparent; cursor:pointer;
+  background:none; color:var(--cotton-3);
+  font:600 12.5px/1.2 var(--sans); letter-spacing:.02em;
+  transition:background .18s, color .18s, border-color .18s;
+}
+.modeb:hover{ color:var(--cotton); }
+.modeb.on{
+  background:linear-gradient(120deg, rgba(168,199,250,.20), rgba(168,199,250,.12));
+  border-color:rgba(168,199,250,.36); color:var(--kesari-hi);
+}
+
+.cfggroup{ margin-top:16px; }
+.cfglab{
+  font:600 10.5px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase;
+  color:var(--cotton-4); margin-bottom:8px;
+}
+.pillrow{ display:flex; flex-wrap:wrap; gap:7px; }
+.pill{
+  padding:8px 14px; border-radius:999px; border:1px solid var(--edge); cursor:pointer;
+  background:var(--glass); color:var(--cotton-2);
+  font:500 13px/1.2 var(--sans);
+  transition:background .16s, border-color .16s, color .16s, transform .12s;
+}
+.pill:hover{ border-color:var(--edge-hi); color:var(--cotton); }
+.pill:active{ transform:scale(.97); }
+.pill.on{
+  background:linear-gradient(120deg, rgba(168,199,250,.22), rgba(168,199,250,.14));
+  border-color:rgba(168,199,250,.4); color:var(--kesari-hi);
+}
+
+.ctxwrap{ margin-top:12px; }
+.ctxin{ margin-top:10px; font-size:15px; }
+
+.linkbtn{
+  background:none; border:none; cursor:pointer; padding:6px 2px;
+  font:600 12.5px/1.2 var(--sans); color:var(--cotton-3);
+  transition:color .16s;
+}
+.linkbtn:hover{ color:var(--kesari); }
+.linkbtn .cnt{
+  display:inline-block; margin-left:5px; padding:1px 6px; border-radius:999px;
+  background:var(--glass-2); color:var(--cotton-2); font:600 10.5px/1.5 var(--mono);
+}
+
+.gjfoot-links{ display:flex; gap:22px; margin-top:22px; padding-top:16px; border-top:1px solid var(--edge); }
+
+.rcards{ display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+.rcard{
+  padding:18px 18px 16px; border-radius:var(--r-m); background:var(--glass); border:1px solid var(--edge);
+  animation:cardIn .32s cubic-bezier(.2,.9,.3,1) both;
+}
+.rcard.rec{ border-color:rgba(168,199,250,.4); background:linear-gradient(160deg, rgba(168,199,250,.08), var(--glass) 55%); }
+@keyframes cardIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+.rcard-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; }
+.rcard-lab{ font:600 10.5px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--cotton-3); }
+.rcard-badge{
+  font:600 10px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase;
+  color:var(--kesari-hi); background:rgba(168,199,250,.16); border:1px solid rgba(168,199,250,.35);
+  padding:3px 8px; border-radius:999px; flex:none;
+}
+.rcard-txt{ font-family:var(--serif); font-size:19px; line-height:1.5; color:var(--cotton); }
+.rcard-txt.guj{ font-family:var(--guj); font-size:20px; }
+.rcard-actions{ display:flex; gap:8px; margin-top:14px; }
+.rcard-btn{
+  padding:8px 16px; border-radius:11px; border:1px solid var(--edge); cursor:pointer;
+  background:var(--glass-2); color:var(--cotton-2); font:600 12.5px/1.2 var(--sans);
+  transition:background .16s, border-color .16s, transform .12s;
+}
+.rcard-btn:hover{ border-color:var(--edge-hi); }
+.rcard-btn:active{ transform:scale(.97); }
+.rcard-btn.primary{ background:linear-gradient(120deg,var(--kesari),var(--rani) 130%); border-color:transparent; color:#1A0A05; }
+
+.histlist{ display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+.histdate{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--kesari); margin:18px 4px 2px;
+}
+.histdate:first-child{ margin-top:6px; }
+.histrow{
+  display:flex; align-items:center; gap:10px;
+  padding:14px 16px; border-radius:var(--r-m); background:var(--glass); border:1px solid var(--edge);
+  cursor:pointer; transition:background .16s, border-color .16s;
+}
+.histrow:hover{ background:var(--glass-2); border-color:var(--edge-hi); }
+.histrow-main{ flex:1; min-width:0; }
+.histmeta{ font:600 10.5px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--cotton-4); margin-bottom:8px; }
+.histmode{ color:var(--kesari); }
+.histin{ font:500 13.5px/1.4 var(--sans); color:var(--cotton-3); margin-bottom:5px; }
+.histout{ font-family:var(--serif); font-size:16.5px; line-height:1.4; color:var(--cotton); }
+.histout.guj{ font-family:var(--guj); }
+
+/* the saved list — one flat Phrasebook-style column, no card chrome */
+.savedlist{ display:flex; flex-direction:column; margin-top:8px; }
+.savedrow{ display:flex; align-items:center; gap:12px; padding:14px 4px; border-bottom:1px solid var(--edge); }
+.savedrow:last-child{ border-bottom:none; }
+.savedrow-body{ flex:1; min-width:0; }
+.savedrow-txt{ font-family:var(--serif); font-size:17px; line-height:1.4; color:var(--cotton); }
+.savedrow-txt.guj{ font-family:var(--guj); }
+.savedrow-meta{ font-family:var(--mono); font-size:10.5px; color:var(--cotton-4); margin-top:5px; letter-spacing:.03em; }
+.savedrow-icons{ display:flex; gap:2px; flex:none; }
+
+/* the star toggle itself — outline until saved, filled gold once it is */
+.bookmark{ flex:none; font-size:16px; color:var(--cotton-3); }
+.bookmark.on, .gticon.bookmark.on:hover{ color:var(--kesari-hi); }
+.rcard-btn.bookmark{ padding:8px 14px; font-size:15px; }
+.rcard-btn.bookmark.on{ background:rgba(168,199,250,.14); border-color:rgba(168,199,250,.4); }
+
+/* ---------- translate mode — a Google-Translate-shaped pane ------
+   Two plain panes, a language bar with a swap control, and a live
+   result as you pause typing. Only Translate mode gets this: Reply
+   and Rewrite produce three variants each, which doesn't fit a
+   single source/target pane at all. */
+
+.col.wide{ max-width:880px; }
+
+.gtbar{
+  display:flex; align-items:center; gap:14px; margin-bottom:6px;
+  padding:8px 4px; flex-wrap:wrap;
+}
+.gtlang{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--cotton-3); min-width:100px;
+}
+.gtswap{
+  width:34px; height:34px; flex:none; border-radius:999px; cursor:pointer;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton-2);
+  font-size:15px; display:grid; place-items:center;
+  transition:background .16s, border-color .16s, transform .18s, color .16s;
+}
+.gtswap:hover:not(:disabled){ background:var(--glass-2); border-color:var(--edge-hi); color:var(--cotton); }
+.gtswap:active:not(:disabled){ transform:rotate(180deg); }
+.gtswap:disabled{ opacity:.28; cursor:not-allowed; }
+.gtto{ flex:1 1 auto; justify-content:flex-end; }
+
+.gtpanes{
+  display:flex; flex-direction:column;
+  border:1px solid var(--edge); border-radius:var(--r-l); overflow:hidden;
+  background:var(--glass);
+}
+.gtpane{ flex:1; min-width:0; display:flex; flex-direction:column; padding:20px 20px 14px; min-height:170px; }
+.gtpane-out{ background:rgba(255,255,255,.025); }
+.gtdivider{ background:var(--edge); height:1px; width:100%; flex:none; }
+@media (min-width:768px){
+  .gtpanes{ flex-direction:row; }
+  .gtdivider{ width:1px; height:auto; }
+}
+
+.gtta{
+  flex:1; width:100%; resize:none; border:0; outline:0; background:none;
+  font-family:var(--serif); font-size:21px; line-height:1.5; color:var(--cotton);
+  min-height:110px;
+}
+.gtta::placeholder{ color:var(--cotton-4); font-family:var(--sans); font-size:16.5px; }
+
+.gtpane-out #gjOut{ flex:1; display:flex; flex-direction:column; }
+.gtout-txt{ flex:1; font-family:var(--serif); font-size:21px; line-height:1.5; color:var(--cotton); }
+.gtout-txt.guj{ font-family:var(--guj); font-size:22px; }
+.gtempty{ flex:1; font-family:var(--serif); font-size:21px; color:var(--cotton-4); font-style:italic; }
+
+.gtpanefoot{ display:flex; align-items:center; justify-content:space-between; margin-top:14px; min-height:32px; }
+.gtcount{ font-family:var(--mono); font-size:11px; color:var(--cotton-4); }
+.gticons{ display:flex; gap:4px; }
+.gticon{
+  width:32px; height:32px; border-radius:999px; cursor:pointer;
+  background:none; border:1px solid transparent; color:var(--cotton-3); font-size:15px;
+  display:grid; place-items:center; transition:background .16s, color .16s, border-color .16s;
+}
+.gticon:hover{ background:var(--glass-2); border-color:var(--edge); color:var(--cotton); }
+
+/* ---------- reply/rewrite generation carousel -------------------
+   Every Regenerate adds a generation instead of replacing the last
+   one — Previous/Next, the dots, and swipe move between them. */
+
+.genhead{ display:flex; align-items:baseline; justify-content:space-between; margin:18px 2px 10px; }
+.genlab{ font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--cotton-3); }
+.genlab b{ color:var(--kesari-hi); font-weight:600; }
+.genvar{ font-family:var(--mono); font-size:10.5px; color:var(--cotton-4); }
+
+.gendots{ display:flex; flex-wrap:wrap; gap:6px; margin-bottom:14px; }
+.gendot{
+  width:7px; height:7px; border-radius:50%; border:0; padding:0; cursor:pointer;
+  background:var(--glass-2); transition:background .16s, transform .16s;
+}
+.gendot:hover{ background:var(--glass-3); }
+.gendot.on{ background:var(--kesari); transform:scale(1.35); }
+.gendot:disabled{ cursor:not-allowed; }
+
+.gencards{ touch-action:pan-y; cursor:grab; outline:none; }
+.gencards:active{ cursor:grabbing; }
+.gencards.busy{ opacity:.5; pointer-events:none; }
+
+.gencarnav{ display:flex; align-items:center; gap:8px; margin-top:16px; }
+.gencarnav .btn{ flex:1; }
+.gencarnav .btn.ghost.sm{ flex:none; }
+.gennav-btn{
+  width:40px; height:40px; flex:none; border-radius:999px; cursor:pointer;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton-2); font-size:18px; line-height:1;
+  display:grid; place-items:center; transition:background .16s, border-color .16s, color .16s, opacity .16s;
+}
+.gennav-btn:hover:not(:disabled){ background:var(--glass-2); border-color:var(--edge-hi); color:var(--cotton); }
+.gennav-btn:disabled{ opacity:.28; cursor:not-allowed; }
+
+.histgen{ color:var(--cotton-4); font-weight:400; }
+
+/* ---------- reply boldness slider (1-5 pips) ---------------------- */
+
+.strengthrow{ display:flex; align-items:center; gap:6px; }
+.strengthend{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--cotton-4); flex:none;
+}
+.strengthpip{
+  width:30px; height:30px; border-radius:999px; cursor:pointer; flex:none;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton-2);
+  font:600 12px/1 var(--mono); display:grid; place-items:center;
+  transition:background .16s, border-color .16s, color .16s, transform .12s;
+}
+.strengthpip:hover{ border-color:var(--edge-hi); color:var(--cotton); }
+.strengthpip:active{ transform:scale(.93); }
+.strengthpip.on{ background:var(--kesari); border-color:transparent; color:#062E6F; }
+
+/* ---------- incoming-message mood read ----------------------------- */
+
+.moodbadge{
+  display:flex; align-items:center; gap:9px; margin:18px 2px 0;
+  padding:10px 14px; border-radius:999px;
+  background:var(--glass); border:1px solid var(--edge);
+  font-size:13px; color:var(--cotton-3);
+}
+.moodicon{ font-size:16px; line-height:1; }
+.moodbadge b{ color:var(--cotton); font-weight:600; text-transform:capitalize; }
+
+/* ---------- conversation memory ------------------------------------ */
+
+.pill.new{ border-style:dashed; color:var(--cotton-3); }
+.pill.new:hover{ color:var(--cotton); }
+
+.convnew{ display:flex; gap:8px; margin-top:10px; }
+.convnew input{
+  flex:1; padding:10px 13px; border-radius:12px; font:inherit; font-size:14px;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton);
+}
+.convnew .btn{ width:auto; padding:10px 16px; }
+
+.convthread{
+  margin-top:12px; padding:12px 14px; border-radius:var(--r-m);
+  background:var(--glass); border:1px solid var(--edge);
+}
+.convthread-head{
+  display:flex; align-items:center; gap:12px; margin-bottom:8px;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--cotton-4);
+}
+.convthread-head span{ flex:1; }
+.linkbtn.sm{ font-size:11px; padding:2px; }
+.convline{ font-size:13.5px; line-height:1.6; color:var(--cotton-2); }
+.convline b{ color:var(--cotton-3); font-weight:600; }
+.convline-empty{ color:var(--cotton-4); font-style:italic; }
+
+/* ---------- smart follow-up prediction ------------------------------ */
+
+.predicttoggle{
+  display:block; margin-top:10px; padding:0; border:0; background:none; cursor:pointer;
+  font-size:12.5px; color:var(--cotton-3); transition:color .16s;
+}
+.predicttoggle:hover{ color:var(--kesari-hi); }
+.predictblock{
+  margin-top:10px; padding:11px 13px; border-radius:12px;
+  background:rgba(168,199,250,.06); border:1px solid rgba(168,199,250,.2);
+}
+.predictlab{
+  display:block; font-family:var(--mono); font-size:9.5px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--cotton-4); margin-bottom:5px;
+}
+.predicttxt{ font-size:14px; line-height:1.5; color:var(--cotton-2); font-style:italic; }
+.predicttxt.guj{ font-family:var(--guj); font-style:normal; }
