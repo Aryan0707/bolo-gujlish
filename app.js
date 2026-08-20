@@ -291,8 +291,15 @@ function timeAgo(ts){
   return new Date(ts).toLocaleDateString();
 }
 
-function copyText(t){
-  function ok(){ sfxTap(); toast("Copied"); }
+/* a brief flourish on the element itself — a toast alone was easy to
+   miss; re-triggerable because removing then re-adding the class
+   restarts a CSS animation that a bare re-add would just no-op */
+function gjFlash(el){
+  if(!el) return;
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+function copyText(t, btn){
+  function ok(){ sfxTap(); toast("Copied"); gjFlash(btn); }
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(t).then(ok, function(){ gjLegacyCopy(t); ok(); });
   }else{ gjLegacyCopy(t); ok(); }
@@ -737,7 +744,7 @@ function gjRenderCarousel(box, mode){
     each($$("#gjOut [data-gcopy]"), function(b){
       b.onclick = function(){
         var text = curCards[+b.getAttribute("data-gcopy")].text;
-        copyText(text);
+        copyText(text, b);
         /* copying is the closest signal we get to "I'm using this one" —
            that's what actually grows the conversation's memory */
         if(mode === "reply" && S.gj.activeConv) gjAppendTurn(S.gj.activeConv, "me", text);
@@ -750,6 +757,7 @@ function gjRenderCarousel(box, mode){
         b.classList.toggle("on", nowSaved);
         b.textContent = nowSaved ? "★" : "☆";
         b.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
+        if(nowSaved) gjFlash(b);
       };
     });
     each($$("#gjOut .predicttoggle"), function(b){
@@ -835,13 +843,14 @@ function gjRenderTranslateOut(box){
     '</div>';
   var sp = $("#gjSpeak");
   if(sp) sp.onclick = function(){ gjSpeak(text, SPEECH_LANG[S.gj.trlang]); };
-  $("#gjOutCopy").onclick = function(){ copyText(text); };
+  $("#gjOutCopy").onclick = function(){ copyText(text, $("#gjOutCopy")); };
   $("#gjOutSave").onclick = function(){
     var nowSaved = gjToggleSaveCard(gjResults.cards[0], "translate");
     var btn = $("#gjOutSave");
     btn.classList.toggle("on", nowSaved);
     btn.textContent = nowSaved ? "★" : "☆";
     btn.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
+    if(nowSaved) gjFlash(btn);
   };
 }
 function gjRefreshDetected(){
@@ -1210,6 +1219,7 @@ function gjWireHistory(){
       b.classList.toggle("on", nowSaved);
       b.textContent = nowSaved ? "★" : "☆";
       b.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
+      if(nowSaved) gjFlash(b);
     };
   });
 }
@@ -1236,7 +1246,7 @@ function gjSavedPanel(){
 }
 function gjWireSaved(){
   each($$("[data-scopy]"), function(b){
-    b.onclick = function(){ copyText(S.gj.saved[+b.getAttribute("data-scopy")].text); };
+    b.onclick = function(){ copyText(S.gj.saved[+b.getAttribute("data-scopy")].text, b); };
   });
   each($$("[data-sdel]"), function(b){
     b.onclick = function(){
@@ -1253,7 +1263,11 @@ function renderTranslate(){
   var ready = AI.on();
   app.classList.toggle("wide", mode === "translate");
 
-  var heroH1 = mode === "reply" ? "Reply like you mean it" : mode === "rewrite" ? "Make it sound natural" : "Say it right";
+  /* the one <em> word per headline carries the gradient-italic accent —
+     fixed, developer-authored strings, safe to embed as raw HTML */
+  var heroH1 = mode === "reply" ? "Reply like you <em>mean it</em>"
+    : mode === "rewrite" ? "Make it sound <em>natural</em>"
+    : "Say it <em>right</em>";
   var heroP = mode === "reply"
     ? "Paste what they sent you and get three ready-to-send replies."
     : mode === "rewrite"
@@ -1263,7 +1277,7 @@ function renderTranslate(){
   app.innerHTML = topBar() +
   '<div class="hero">' +
     '<div class="eyebrow">Gujlish AI</div>' +
-    '<h1>' + esc(heroH1) + '</h1>' +
+    '<h1>' + heroH1 + '</h1>' +
     '<p>' + esc(heroP) + '</p>' +
   '</div>' +
   '<div class="modesw" role="group" aria-label="Mode">' +

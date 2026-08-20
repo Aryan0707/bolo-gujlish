@@ -13,9 +13,10 @@
   --ink:        #131314;   /* page background */
   --ink-2:      #1E1F20;   /* a raised surface: cards, pills, rows */
 
-  --kesari:     #A8C7FA;   /* the one accent now — Google's dark-theme blue */
+  --kesari:     #A8C7FA;   /* selection/navigation accent — Google's dark-theme blue */
   --kesari-hi:  #D3E3FD;   /* lighter blue, for hover/emphasis text */
-  --rani:       #A8C7FA;   /* no second hue — collapses onto the same blue */
+  --rani:       #F2A65A;   /* "this is the answer" accent — warm, reserved for the one recommended thing on screen */
+  --rani-hi:    #FFC98A;
 
   --mor:        #81C995;   /* status green, kept as a semantic colour */
   --mor-lo:     #1E4620;
@@ -161,7 +162,18 @@ body{
 
 /* ---------- headings ------------------------------------------ */
 
-.hero{ padding:12px 4px 20px; }
+/* one small nod to bandhani (the resist-dot pattern the whole app used
+   to be built from) instead of the full animated background — a
+   signature mark, not a texture fighting the flat Google-style layout */
+.hero{ padding:12px 4px 20px; position:relative; }
+.hero::before{
+  content:""; position:absolute; top:-6px; right:-4px; width:130px; height:110px;
+  pointer-events:none; z-index:-1;
+  background-image:radial-gradient(circle, rgba(168,199,250,.4) 0 1.6px, transparent 2.1px);
+  background-size:17px 17px;
+  -webkit-mask-image:radial-gradient(circle at 100% 0%, #000 0%, transparent 72%);
+          mask-image:radial-gradient(circle at 100% 0%, #000 0%, transparent 72%);
+}
 .eyebrow{
   font-family:var(--mono); font-size:11px; letter-spacing:.24em;
   text-transform:uppercase; color:var(--kesari);
@@ -304,13 +316,14 @@ body{
   padding:8px 14px; border-radius:999px; border:1px solid var(--edge); cursor:pointer;
   background:var(--glass); color:var(--cotton-2);
   font:500 13px/1.2 var(--sans);
-  transition:background .16s, border-color .16s, color .16s, transform .12s;
+  transition:background .18s, border-color .16s, color .16s, transform .32s cubic-bezier(.34,1.56,.64,1);
 }
 .pill:hover{ border-color:var(--edge-hi); color:var(--cotton); }
-.pill:active{ transform:scale(.97); }
+.pill:active{ transform:scale(.94); }
 .pill.on{
   background:linear-gradient(120deg, rgba(168,199,250,.22), rgba(168,199,250,.14));
   border-color:rgba(168,199,250,.4); color:var(--kesari-hi);
+  transform:scale(1.045);   /* the spring-easing transition above is what makes this settle with a little overshoot */
 }
 
 .ctxwrap{ margin-top:12px; }
@@ -332,15 +345,25 @@ body{
 .rcards{ display:flex; flex-direction:column; gap:12px; margin-top:16px; }
 .rcard{
   padding:18px 18px 16px; border-radius:var(--r-m); background:var(--glass); border:1px solid var(--edge);
-  animation:cardIn .32s cubic-bezier(.2,.9,.3,1) both;
+  animation:cardIn .36s cubic-bezier(.2,.9,.3,1) both;
 }
-.rcard.rec{ border-color:rgba(168,199,250,.4); background:linear-gradient(160deg, rgba(168,199,250,.08), var(--glass) 55%); }
-@keyframes cardIn{ from{ opacity:0; transform:translateY(8px); } to{ opacity:1; transform:none; } }
+/* cards land one after another instead of all at once */
+.rcard:nth-child(1){ animation-delay:0s; }
+.rcard:nth-child(2){ animation-delay:.08s; }
+.rcard:nth-child(3){ animation-delay:.16s; }
+/* the recommended card gets the warm "this is the answer" accent —
+   everything selectable elsewhere stays blue, so this is the one
+   thing on screen that isn't a selection state */
+.rcard.rec{
+  border-color:rgba(242,166,90,.4);
+  background:linear-gradient(160deg, rgba(242,166,90,.10), var(--glass) 55%);
+}
+@keyframes cardIn{ from{ opacity:0; transform:translateY(10px) scale(.98); } to{ opacity:1; transform:none; } }
 .rcard-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:10px; }
 .rcard-lab{ font:600 10.5px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase; color:var(--cotton-3); }
 .rcard-badge{
   font:600 10px/1 var(--mono); letter-spacing:.08em; text-transform:uppercase;
-  color:var(--kesari-hi); background:rgba(168,199,250,.16); border:1px solid rgba(168,199,250,.35);
+  color:var(--rani-hi); background:rgba(242,166,90,.16); border:1px solid rgba(242,166,90,.35);
   padding:3px 8px; border-radius:999px; flex:none;
 }
 .rcard-txt{ font-family:var(--serif); font-size:19px; line-height:1.5; color:var(--cotton); }
@@ -354,6 +377,15 @@ body{
 .rcard-btn:hover{ border-color:var(--edge-hi); }
 .rcard-btn:active{ transform:scale(.97); }
 .rcard-btn.primary{ background:linear-gradient(120deg,var(--kesari),var(--rani) 130%); border-color:transparent; color:#1A0A05; }
+
+/* the payoff moment for Copy and Save — a warm pop so the action reads
+   as "done", not just a silent DOM update plus a toast you might miss */
+.flash{ animation:actionFlash .5s cubic-bezier(.2,.9,.3,1); }
+@keyframes actionFlash{
+  0%{ transform:scale(1); }
+  35%{ transform:scale(1.18); box-shadow:0 0 0 8px rgba(242,166,90,.22); }
+  100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(242,166,90,0); }
+}
 
 .histlist{ display:flex; flex-direction:column; gap:10px; margin-top:8px; }
 .histdate{
@@ -865,8 +897,15 @@ function timeAgo(ts){
   return new Date(ts).toLocaleDateString();
 }
 
-function copyText(t){
-  function ok(){ sfxTap(); toast("Copied"); }
+/* a brief flourish on the element itself — a toast alone was easy to
+   miss; re-triggerable because removing then re-adding the class
+   restarts a CSS animation that a bare re-add would just no-op */
+function gjFlash(el){
+  if(!el) return;
+  el.classList.remove("flash"); void el.offsetWidth; el.classList.add("flash");
+}
+function copyText(t, btn){
+  function ok(){ sfxTap(); toast("Copied"); gjFlash(btn); }
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(t).then(ok, function(){ gjLegacyCopy(t); ok(); });
   }else{ gjLegacyCopy(t); ok(); }
@@ -1311,7 +1350,7 @@ function gjRenderCarousel(box, mode){
     each($$("#gjOut [data-gcopy]"), function(b){
       b.onclick = function(){
         var text = curCards[+b.getAttribute("data-gcopy")].text;
-        copyText(text);
+        copyText(text, b);
         /* copying is the closest signal we get to "I'm using this one" —
            that's what actually grows the conversation's memory */
         if(mode === "reply" && S.gj.activeConv) gjAppendTurn(S.gj.activeConv, "me", text);
@@ -1324,6 +1363,7 @@ function gjRenderCarousel(box, mode){
         b.classList.toggle("on", nowSaved);
         b.textContent = nowSaved ? "★" : "☆";
         b.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
+        if(nowSaved) gjFlash(b);
       };
     });
     each($$("#gjOut .predicttoggle"), function(b){
@@ -1409,13 +1449,14 @@ function gjRenderTranslateOut(box){
     '</div>';
   var sp = $("#gjSpeak");
   if(sp) sp.onclick = function(){ gjSpeak(text, SPEECH_LANG[S.gj.trlang]); };
-  $("#gjOutCopy").onclick = function(){ copyText(text); };
+  $("#gjOutCopy").onclick = function(){ copyText(text, $("#gjOutCopy")); };
   $("#gjOutSave").onclick = function(){
     var nowSaved = gjToggleSaveCard(gjResults.cards[0], "translate");
     var btn = $("#gjOutSave");
     btn.classList.toggle("on", nowSaved);
     btn.textContent = nowSaved ? "★" : "☆";
     btn.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
+    if(nowSaved) gjFlash(btn);
   };
 }
 function gjRefreshDetected(){
@@ -1784,6 +1825,7 @@ function gjWireHistory(){
       b.classList.toggle("on", nowSaved);
       b.textContent = nowSaved ? "★" : "☆";
       b.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
+      if(nowSaved) gjFlash(b);
     };
   });
 }
@@ -1810,7 +1852,7 @@ function gjSavedPanel(){
 }
 function gjWireSaved(){
   each($$("[data-scopy]"), function(b){
-    b.onclick = function(){ copyText(S.gj.saved[+b.getAttribute("data-scopy")].text); };
+    b.onclick = function(){ copyText(S.gj.saved[+b.getAttribute("data-scopy")].text, b); };
   });
   each($$("[data-sdel]"), function(b){
     b.onclick = function(){
@@ -1827,7 +1869,11 @@ function renderTranslate(){
   var ready = AI.on();
   app.classList.toggle("wide", mode === "translate");
 
-  var heroH1 = mode === "reply" ? "Reply like you mean it" : mode === "rewrite" ? "Make it sound natural" : "Say it right";
+  /* the one <em> word per headline carries the gradient-italic accent —
+     fixed, developer-authored strings, safe to embed as raw HTML */
+  var heroH1 = mode === "reply" ? "Reply like you <em>mean it</em>"
+    : mode === "rewrite" ? "Make it sound <em>natural</em>"
+    : "Say it <em>right</em>";
   var heroP = mode === "reply"
     ? "Paste what they sent you and get three ready-to-send replies."
     : mode === "rewrite"
@@ -1837,7 +1883,7 @@ function renderTranslate(){
   app.innerHTML = topBar() +
   '<div class="hero">' +
     '<div class="eyebrow">Gujlish AI</div>' +
-    '<h1>' + esc(heroH1) + '</h1>' +
+    '<h1>' + heroH1 + '</h1>' +
     '<p>' + esc(heroP) + '</p>' +
   '</div>' +
   '<div class="modesw" role="group" aria-label="Mode">' +
