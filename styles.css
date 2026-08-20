@@ -98,7 +98,7 @@ body{
   transition:background .18s, color .18s, border-color .18s;
   width:100%; text-align:left;
 }
-.nav .ic{ font-size:17px; line-height:1; width:22px; text-align:center; }
+.nav .ic{ font-size:17px; line-height:1; width:22px; text-align:center; display:inline-flex; align-items:center; justify-content:center; }
 .nav:hover{ background:var(--glass); color:var(--cotton); }
 .nav.on{
   background:rgba(168,199,250,.16); border-color:transparent; color:var(--kesari-hi);
@@ -125,7 +125,7 @@ body{
   color:var(--cotton-4); font:600 9.5px/1 var(--mono);
   letter-spacing:.12em; text-transform:uppercase;
 }
-.tab .ic{ font-size:19px; line-height:1; }
+.tab .ic{ font-size:19px; line-height:1; display:flex; align-items:center; justify-content:center; }
 .tab.on{ color:var(--kesari); }
 .tab:disabled{ opacity:.3; }
 @media (min-width:900px){ .tabs{ display:none; } .main{ padding-bottom:32px; } }
@@ -370,7 +370,9 @@ body{
   padding:8px 16px; border-radius:11px; border:1px solid var(--edge); cursor:pointer;
   background:var(--glass-2); color:var(--cotton-2); font:600 12.5px/1.2 var(--sans);
   transition:background .16s, border-color .16s, transform .12s;
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
 }
+.gicon{ display:block; flex:none; }
 .rcard-btn:hover{ border-color:var(--edge-hi); }
 .rcard-btn:active{ transform:scale(.97); }
 .rcard-btn.primary{ background:linear-gradient(120deg,var(--kesari),var(--rani) 130%); border-color:transparent; color:#1A0A05; }
@@ -413,9 +415,11 @@ body{
 .savedrow-meta{ font-family:var(--mono); font-size:10.5px; color:var(--cotton-4); margin-top:5px; letter-spacing:.03em; }
 .savedrow-icons{ display:flex; gap:2px; flex:none; }
 
-/* the star toggle itself — outline until saved, filled gold once it is */
+/* the star toggle itself — outline until saved, filled once it is */
 .bookmark{ flex:none; font-size:16px; color:var(--cotton-3); }
+.bookmark .gicon{ transition:fill .16s; }
 .bookmark.on, .gticon.bookmark.on:hover{ color:var(--kesari-hi); }
+.bookmark.on .gicon{ fill:currentColor; }
 .rcard-btn.bookmark{ padding:8px 14px; font-size:15px; }
 .rcard-btn.bookmark.on{ background:rgba(168,199,250,.14); border-color:rgba(168,199,250,.4); }
 
@@ -580,9 +584,10 @@ body{
 /* ---------- smart follow-up prediction ------------------------------ */
 
 .predicttoggle{
-  display:block; margin-top:10px; padding:0; border:0; background:none; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:0; border:0; background:none; cursor:pointer;
   font-size:12.5px; color:var(--cotton-3); transition:color .16s;
 }
+.predicttoggle .gicon{ color:var(--rani); }
 .predicttoggle:hover{ color:var(--kesari-hi); }
 .predictblock{
   margin-top:10px; padding:11px 13px; border-radius:12px;

@@ -102,6 +102,30 @@ function each(list, fn){ Array.prototype.forEach.call(list, fn); }
 function $(sel, root){ return (root || document).querySelector(sel); }
 function $$(sel, root){ return (root || document).querySelectorAll(sel); }
 
+/* one consistent line-icon set, replacing the mismatched emoji glyphs
+   (🔊 ⧉ ★ ‹ › ⇄ 🔮) that used to sit in these buttons — every icon
+   here shares the same stroke weight and uses currentColor, so it
+   just inherits whatever color the surrounding button/state already
+   sets (hover, .on, .bookmark.on, disabled) with no extra wiring */
+var ICON_PATHS = {
+  speak: '<path d="M4.5 9.5v5h3.1l4.9 3.7V5.8l-4.9 3.7H4.5z"/><path d="M15.3 9.2a3.9 3.9 0 0 1 0 5.6"/><path d="M17.8 6.6a7.4 7.4 0 0 1 0 10.8"/>',
+  copy: '<rect x="8.2" y="8.2" width="11.3" height="11.3" rx="2.6"/><path d="M15.5 8.2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.2"/>',
+  star: '<path d="M12 3.6l2.35 4.86 5.3.6-3.9 3.75.94 5.3L12 15.5l-4.69 2.6.94-5.3-3.9-3.75 5.3-.6z"/>',
+  chevronLeft: '<path d="M14.8 5.3l-6.4 6.7 6.4 6.7"/>',
+  chevronRight: '<path d="M9.2 5.3l6.4 6.7-6.4 6.7"/>',
+  swap: '<path d="M6 8.3h12.3m0 0l-3.6-3.6M18.3 8.3l-3.6 3.6"/><path d="M18 15.7H5.7m0 0l3.6 3.6M5.7 15.7l3.6-3.6"/>',
+  sparkle: '<path d="M12 3.6l1.35 3.75L17.1 8.7l-3.75 1.35L12 13.8l-1.35-3.75L6.9 8.7l3.75-1.35z"/><path d="M18.6 14.5l.72 1.86 1.86.72-1.86.72-.72 1.86-.72-1.86-1.86-.72 1.86-.72z"/>',
+  gear: '<circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v2.5M12 18.1v2.5M20.6 12h-2.5M5.9 12H3.4M17.9 6.1l-1.77 1.77M7.87 16.13L6.1 17.9M17.9 17.9l-1.77-1.77M7.87 7.87L6.1 6.1"/>',
+  close: '<path d="M6 6l12 12M18 6L6 18"/>'
+};
+function gjIcon(name, size){
+  var body = ICON_PATHS[name];
+  if(!body) return "";
+  size = size || 17;
+  return '<svg class="gicon" width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+}
+
 function toast(msg){
   var t = el('<div style="position:fixed;left:50%;top:22px;transform:translateX(-50%);z-index:60;' +
     'padding:12px 20px;border-radius:999px;background:rgba(11,10,16,.94);border:1px solid var(--edge);' +
@@ -214,8 +238,8 @@ function elevenErrorText(e){
 
 var screen = "translate";
 var TABS = [
-  { id:"translate", ic:"🔁", t:"Translate" },
-  { id:"settings",  ic:"⚙",  t:"You" }
+  { id:"translate", ic:gjIcon("swap", 18), t:"Translate" },
+  { id:"settings",  ic:gjIcon("gear", 18), t:"You" }
 ];
 
 function paintShell(){
@@ -754,12 +778,12 @@ function gjRenderCarousel(box, mode){
             '<div class="rcard-txt' + (looksGujScript(c.text) ? " guj" : "") + '">' + esc(c.text) + '</div>' +
             '<div class="rcard-actions">' +
               '<button class="rcard-btn primary" data-gcopy="' + i + '">Copy</button>' +
-              '<button class="rcard-btn" data-gspeak="' + i + '" aria-label="Listen" title="Listen">🔊</button>' +
+              '<button class="rcard-btn" data-gspeak="' + i + '" aria-label="Listen" title="Listen">' + gjIcon("speak", 15) + '</button>' +
               '<button class="rcard-btn bookmark' + (gjIsSaved(c.text) ? " on" : "") + '" data-gbm="' + i + '" ' +
-                'aria-label="' + (gjIsSaved(c.text) ? "Remove from saved" : "Save") + '">' + (gjIsSaved(c.text) ? "★" : "☆") + '</button>' +
+                'aria-label="' + (gjIsSaved(c.text) ? "Remove from saved" : "Save") + '">' + gjIcon("star", 15) + '</button>' +
             '</div>' +
             (c.predicted
-              ? '<button class="predicttoggle">🔮 Predict their reply</button>' +
+              ? '<button class="predicttoggle">' + gjIcon("sparkle", 13) + ' Predict their reply</button>' +
                 '<div class="predictblock" hidden>' +
                   '<span class="predictlab">They might say</span>' +
                   '<div class="predicttxt' + (looksGujScript(c.predicted) ? " guj" : "") + '">' + esc(c.predicted) + '</div>' +
@@ -773,11 +797,11 @@ function gjRenderCarousel(box, mode){
   body += '<div class="gencarnav">' +
     '<button class="btn ghost sm" id="gjClear">Clear</button>' +
     (active ? '<button class="gennav-btn" id="gjPrev" aria-label="Previous generation"' +
-      (gjCarIdx[mode] === 0 || gjBusy ? " disabled" : "") + '>‹</button>' : "") +
+      (gjCarIdx[mode] === 0 || gjBusy ? " disabled" : "") + '>' + gjIcon("chevronLeft", 16) + '</button>' : "") +
     '<button class="btn" id="gjGo"' + (gjBusy ? " disabled" : "") + '>' +
       (gjBusy ? "Generating…" : (active ? "Regenerate" : "Generate")) + '</button>' +
     (active ? '<button class="gennav-btn" id="gjNext" aria-label="Next generation"' +
-      (gjCarIdx[mode] === active.generations.length - 1 || gjBusy ? " disabled" : "") + '>›</button>' : "") +
+      (gjCarIdx[mode] === active.generations.length - 1 || gjBusy ? " disabled" : "") + '>' + gjIcon("chevronRight", 16) + '</button>' : "") +
   '</div>';
 
   box.innerHTML = body;
@@ -804,7 +828,6 @@ function gjRenderCarousel(box, mode){
         var c = curCards[+b.getAttribute("data-gbm")];
         var nowSaved = gjToggleSaveCard(c, mode);
         b.classList.toggle("on", nowSaved);
-        b.textContent = nowSaved ? "★" : "☆";
         b.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
         if(nowSaved) gjFlash(b);
       };
@@ -886,11 +909,11 @@ function gjRenderTranslateOut(box){
     '<div class="gtpanefoot out">' +
       '<span></span>' +
       '<span class="gticons">' +
-        (canSpeak ? '<button class="gticon" id="gjSpeak" aria-label="Listen" title="Listen">🔊</button>' : "") +
-        '<button class="gticon" id="gjOutCopy" aria-label="Copy" title="Copy">⧉</button>' +
+        (canSpeak ? '<button class="gticon" id="gjSpeak" aria-label="Listen" title="Listen">' + gjIcon("speak") + '</button>' : "") +
+        '<button class="gticon" id="gjOutCopy" aria-label="Copy" title="Copy">' + gjIcon("copy") + '</button>' +
         '<button class="gticon bookmark' + (isSaved ? " on" : "") + '" id="gjOutSave" ' +
           'aria-label="' + (isSaved ? "Remove from saved" : "Save") + '" title="' + (isSaved ? "Remove from saved" : "Save") + '">' +
-          (isSaved ? "★" : "☆") + '</button>' +
+          gjIcon("star") + '</button>' +
       '</span>' +
     '</div>';
   var sp = $("#gjSpeak");
@@ -900,7 +923,6 @@ function gjRenderTranslateOut(box){
     var nowSaved = gjToggleSaveCard(gjResults.cards[0], "translate");
     var btn = $("#gjOutSave");
     btn.classList.toggle("on", nowSaved);
-    btn.textContent = nowSaved ? "★" : "☆";
     btn.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
     if(nowSaved) gjFlash(btn);
   };
@@ -1118,7 +1140,7 @@ function gjTranslatePaneHTML(){
         (gjResults && gjResults.mode === "translate" && gjResults.detected ? esc(gjResults.detected) : "Detect language") +
       '</div>' +
       '<button class="gtswap" id="gjSwap" aria-label="Use translation as new input" title="Use translation as new input"' +
-        (canSwap ? "" : " disabled") + '>⇄</button>' +
+        (canSwap ? "" : " disabled") + '>' + gjIcon("swap", 15) + '</button>' +
       '<div class="pillrow gtto">' + gjLangOpts().map(function(o){
         return '<button class="pill' + (S.gj.trlang === o.id ? " on" : "") + '" data-trlang="' + o.id + '">' + esc(o.lab) + '</button>';
       }).join("") + '</div>' +
@@ -1130,7 +1152,7 @@ function gjTranslatePaneHTML(){
         '<div class="gtpanefoot">' +
           '<span class="gtcount" id="gjCount">' + (gjText.translate || "").length + '</span>' +
           '<span class="gticons">' +
-            (gjText.translate ? '<button class="gticon" id="gjClearX" aria-label="Clear" title="Clear">✕</button>' : "") +
+            (gjText.translate ? '<button class="gticon" id="gjClearX" aria-label="Clear" title="Clear">' + gjIcon("close", 14) + '</button>' : "") +
           '</span>' +
         '</div>' +
       '</div>' +
@@ -1174,7 +1196,7 @@ function gjWireTranslatePane(){
     }
     if(!$("#gjClearX")){
       var foot = $(".gtpanefoot .gticons");
-      if(foot) foot.innerHTML = '<button class="gticon" id="gjClearX" aria-label="Clear" title="Clear">✕</button>';
+      if(foot) foot.innerHTML = '<button class="gticon" id="gjClearX" aria-label="Clear" title="Clear">' + gjIcon("close", 14) + '</button>';
       wireClearX();
     }
     /* Google-style: translate on its own, ~1s after you stop typing,
@@ -1238,7 +1260,7 @@ function gjHistoryPanel(){
         '<div class="histout' + (top && looksGujScript(top) ? " guj" : "") + '">' + esc(top) + '</div>' +
       '</div>' +
       (top ? '<button class="gticon bookmark' + (isSaved ? " on" : "") + '" data-hbm="' + i + '" ' +
-        'aria-label="' + (isSaved ? "Remove from saved" : "Save") + '">' + (isSaved ? "★" : "☆") + '</button>' : "") +
+        'aria-label="' + (isSaved ? "Remove from saved" : "Save") + '">' + gjIcon("star") + '</button>' : "") +
     '</div>';
   });
   return '<div class="histlist">' + out + '</div>';
@@ -1283,7 +1305,6 @@ function gjWireHistory(){
       if(!top) return;
       var nowSaved = gjToggleSaveCard(top, h.mode);
       b.classList.toggle("on", nowSaved);
-      b.textContent = nowSaved ? "★" : "☆";
       b.setAttribute("aria-label", nowSaved ? "Remove from saved" : "Save");
       if(nowSaved) gjFlash(b);
     };
@@ -1304,8 +1325,8 @@ function gjSavedPanel(){
         '<div class="savedrow-meta">' + esc(sv.label || "") + (sv.label ? " · " : "") + timeAgo(sv.ts) + '</div>' +
       '</div>' +
       '<div class="savedrow-icons">' +
-        '<button class="gticon" data-scopy="' + i + '" aria-label="Copy" title="Copy">⧉</button>' +
-        '<button class="gticon bookmark on" data-sdel="' + i + '" aria-label="Remove from saved" title="Remove from saved">★</button>' +
+        '<button class="gticon" data-scopy="' + i + '" aria-label="Copy" title="Copy">' + gjIcon("copy") + '</button>' +
+        '<button class="gticon bookmark on" data-sdel="' + i + '" aria-label="Remove from saved" title="Remove from saved">' + gjIcon("star") + '</button>' +
       '</div>' +
     '</div>';
   }).join("") + '</div>';
