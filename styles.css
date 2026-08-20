@@ -481,6 +481,13 @@ body{
 }
 .gticon:hover{ background:var(--glass-2); border-color:var(--edge); color:var(--cotton); }
 
+/* the Listen button while ElevenLabs audio is loading/playing */
+.speaking{ animation:speakPulse 1.1s ease-in-out infinite; }
+@keyframes speakPulse{
+  0%, 100%{ opacity:1; transform:scale(1); }
+  50%{ opacity:.6; transform:scale(1.12); }
+}
+
 /* ---------- reply/rewrite generation carousel -------------------
    Every Regenerate adds a generation instead of replacing the last
    one — Previous/Next, the dots, and swipe move between them. */

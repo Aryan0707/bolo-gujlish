@@ -484,6 +484,13 @@ body{
 }
 .gticon:hover{ background:var(--glass-2); border-color:var(--edge); color:var(--cotton); }
 
+/* the Listen button while ElevenLabs audio is loading/playing */
+.speaking{ animation:speakPulse 1.1s ease-in-out infinite; }
+@keyframes speakPulse{
+  0%, 100%{ opacity:1; transform:scale(1); }
+  50%{ opacity:.6; transform:scale(1.12); }
+}
+
 /* ---------- reply/rewrite generation carousel -------------------
    Every Regenerate adds a generation instead of replacing the last
    one — Previous/Next, the dots, and swipe move between them. */
@@ -659,6 +666,7 @@ function write(o){
 var S = read() || {};
 if(typeof S.sound !== "boolean") S.sound = true;
 if(!S.ai) S.ai = { key:"", model:"google/gemini-2.5-flash-lite" };
+if(!S.eleven) S.eleven = { key:"", voiceId:"" };
 if(!S.gj) S.gj = { mode:"reply", lang:"roman", trlang:"roman", style:"gujlish",
   length:"short", texting:"natural", relation:"friend", strength:3, history:[], saved:[] };
 if(!S.gj.history)  S.gj.history = [];
@@ -769,6 +777,47 @@ function aiErrorText(e){
   if(/HTTP 401|HTTP 403/.test(m)) return "OpenRouter rejected the key. Check it in Settings.";
   if(/HTTP 402/.test(m)) return "OpenRouter says this account is out of credit.";
   if(/HTTP 429/.test(m)) return "Rate limited by OpenRouter. Wait a moment and try again.";
+  return m;
+}
+
+/* Real neural voice, on your own ElevenLabs key — costs their credits
+   per call, every call, by design: you asked for it to be available
+   whenever you want, not metered or held back. Falls back to the
+   browser's free built-in voice whenever this isn't configured, or
+   if a call to it fails. */
+var gjAudioEl = null;
+var Eleven = {
+  on: function(){ return !!(S.eleven && S.eleven.key && S.eleven.voiceId); },
+  speak: function(text){
+    var key = S.eleven.key, voiceId = S.eleven.voiceId;
+    return fetch("https://api.elevenlabs.io/v1/text-to-speech/" + encodeURIComponent(voiceId), {
+      method: "POST",
+      headers: { "Content-Type":"application/json", "Accept":"audio/mpeg", "xi-api-key":key },
+      body: JSON.stringify({ text:text, model_id:"eleven_multilingual_v2" })
+    }).then(function(r){
+      if(!r.ok) return r.text().then(function(t){ throw new Error("HTTP " + r.status + " — " + t.slice(0, 140)); });
+      return r.blob();
+    }).then(function(blob){
+      return new Promise(function(resolve, reject){
+        if(gjAudioEl){ gjAudioEl.pause(); }
+        var url = URL.createObjectURL(blob);
+        var audio = new Audio(url);
+        gjAudioEl = audio;
+        audio.onended = function(){ URL.revokeObjectURL(url); resolve(); };
+        audio.onerror = function(){ URL.revokeObjectURL(url); reject(new Error("Playback failed.")); };
+        audio.play().catch(reject);
+      });
+    });
+  }
+};
+function elevenErrorText(e){
+  var m = (e && e.message) || String(e);
+  if(/Failed to fetch|NetworkError|Load failed/i.test(m)){
+    return "Couldn't reach ElevenLabs. If you're on the shared artifact link, outside connections are blocked there — run the local copy instead. Otherwise check your connection.";
+  }
+  if(/HTTP 401/.test(m)) return "ElevenLabs rejected the key. Check it in Settings.";
+  if(/HTTP 400|HTTP 404/.test(m)) return "ElevenLabs didn't recognize that voice ID. Check it in Settings.";
+  if(/HTTP 429/.test(m)) return "ElevenLabs rate limit or out of credit. Wait a moment or check your account.";
   return m;
 }
 
@@ -1318,6 +1367,7 @@ function gjRenderCarousel(box, mode){
             '<div class="rcard-txt' + (looksGujScript(c.text) ? " guj" : "") + '">' + esc(c.text) + '</div>' +
             '<div class="rcard-actions">' +
               '<button class="rcard-btn primary" data-gcopy="' + i + '">Copy</button>' +
+              '<button class="rcard-btn" data-gspeak="' + i + '" aria-label="Listen" title="Listen">🔊</button>' +
               '<button class="rcard-btn bookmark' + (gjIsSaved(c.text) ? " on" : "") + '" data-gbm="' + i + '" ' +
                 'aria-label="' + (gjIsSaved(c.text) ? "Remove from saved" : "Save") + '">' + (gjIsSaved(c.text) ? "★" : "☆") + '</button>' +
             '</div>' +
@@ -1354,6 +1404,12 @@ function gjRenderCarousel(box, mode){
         /* copying is the closest signal we get to "I'm using this one" —
            that's what actually grows the conversation's memory */
         if(mode === "reply" && S.gj.activeConv) gjAppendTurn(S.gj.activeConv, "me", text);
+      };
+    });
+    each($$("#gjOut [data-gspeak]"), function(b){
+      b.onclick = function(){
+        var text = curCards[+b.getAttribute("data-gspeak")].text;
+        gjSpeak(text, SPEECH_LANG[S.gj.lang] || "en-US", b);
       };
     });
     each($$("#gjOut [data-gbm]"), function(b){
@@ -1433,7 +1489,10 @@ function gjRenderTranslateOut(box){
     return;
   }
   var text = gjResults.cards[0].text;
-  var canSpeak = !!(window.speechSynthesis && SPEECH_LANG[S.gj.trlang]);
+  /* ElevenLabs handles code-mixed Gujlish far better than the browser's
+     built-in voice, so once it's configured the Listen button stops
+     being limited to script/English only */
+  var canSpeak = Eleven.on() || !!(window.speechSynthesis && SPEECH_LANG[S.gj.trlang]);
   var isSaved = gjIsSaved(text);
   box.innerHTML = '<div class="gtout-txt' + (looksGujScript(text) ? " guj" : "") + '">' + esc(text) + '</div>' +
     (gjResults.note ? '<div class="hintline">' + esc(gjResults.note) + '</div>' : "") +
@@ -1448,7 +1507,7 @@ function gjRenderTranslateOut(box){
       '</span>' +
     '</div>';
   var sp = $("#gjSpeak");
-  if(sp) sp.onclick = function(){ gjSpeak(text, SPEECH_LANG[S.gj.trlang]); };
+  if(sp) sp.onclick = function(){ gjSpeak(text, SPEECH_LANG[S.gj.trlang] || "en-US", sp); };
   $("#gjOutCopy").onclick = function(){ copyText(text, $("#gjOutCopy")); };
   $("#gjOutSave").onclick = function(){
     var nowSaved = gjToggleSaveCard(gjResults.cards[0], "translate");
@@ -1464,7 +1523,21 @@ function gjRefreshDetected(){
   if(!d) return;
   d.textContent = (gjResults && gjResults.mode === "translate" && gjResults.detected) ? gjResults.detected : "Detect language";
 }
-function gjSpeak(text, lang){
+function gjSpeak(text, lang, btn){
+  if(Eleven.on()){
+    if(btn){ btn.classList.add("speaking"); btn.disabled = true; }
+    Eleven.speak(text).then(function(){
+      if(btn){ btn.classList.remove("speaking"); btn.disabled = false; }
+    }).catch(function(e){
+      if(btn){ btn.classList.remove("speaking"); btn.disabled = false; }
+      toast(elevenErrorText(e));
+      gjSpeakBrowser(text, lang);   /* still let them hear something rather than just fail */
+    });
+    return;
+  }
+  gjSpeakBrowser(text, lang);
+}
+function gjSpeakBrowser(text, lang){
   if(!window.speechSynthesis) return;
   try{
     window.speechSynthesis.cancel();
@@ -1882,7 +1955,6 @@ function renderTranslate(){
 
   app.innerHTML = topBar() +
   '<div class="hero">' +
-    '<div class="eyebrow">Gujlish AI</div>' +
     '<h1>' + heroH1 + '</h1>' +
     '<p>' + esc(heroP) + '</p>' +
   '</div>' +
@@ -1965,6 +2037,32 @@ function renderSettings(){
     '<div id="aiStatus" style="margin-top:12px"></div>' +
   '</div>' +
 
+  '<div class="glass pad" style="margin-bottom:14px">' +
+    '<div class="sidehead"><span>Voice</span>' +
+      '<span class="chip ' + (Eleven.on() ? "ai" : "") + '">' + (Eleven.on() ? "connected" : "off") + '</span></div>' +
+    '<div class="warn" style="margin-bottom:16px">' +
+      'Real neural voice via your own ElevenLabs key, available on Listen whenever you want — that means it spends ' +
+      'their credits every time, not just occasionally. Stored <b>only in this browser</b>, same as the OpenRouter key. ' +
+      'Without this, Listen falls back to your browser\'s free built-in voice.' +
+    '</div>' +
+    '<div class="field">' +
+      '<label for="ek">ElevenLabs API key</label>' +
+      '<input id="ek" type="password" placeholder="…" value="' + esc(S.eleven.key || "") + '" autocomplete="off" spellcheck="false">' +
+      '<div class="hint">Get one at elevenlabs.io → Settings → API Keys.</div>' +
+    '</div>' +
+    '<div class="field">' +
+      '<label for="ev">Voice ID</label>' +
+      '<input id="ev" type="text" placeholder="e.g. 21m00Tcm4TlvDq8ikWAM" value="' + esc(S.eleven.voiceId || "") + '" autocomplete="off" spellcheck="false">' +
+      '<div class="hint">Find one at elevenlabs.io → Voices — open a voice and copy its ID.</div>' +
+    '</div>' +
+    '<div class="rowbtns">' +
+      '<button class="btn ghost" id="clearEk">Remove key</button>' +
+      '<button class="btn" id="saveEk">Save &amp; test</button>' +
+    '</div>' +
+    '<div class="hintline">Save &amp; test speaks a short phrase out loud — that itself uses a small amount of credit.</div>' +
+    '<div id="elevenStatus" style="margin-top:12px"></div>' +
+  '</div>' +
+
   '<div class="glass pad">' +
     '<div class="sidehead"><span>Sound</span></div>' +
     '<div class="pillrow">' +
@@ -2006,6 +2104,32 @@ function renderSettings(){
     S.ai.key = ""; save();
     $("#k").value = "";
     $("#aiStatus").innerHTML = '<div class="status"><span class="dot off"></span>Key removed from this browser.</div>';
+    sfxTap(); paintShell();
+  };
+
+  $("#saveEk").onclick = function(){
+    S.eleven.key = $("#ek").value.trim();
+    S.eleven.voiceId = $("#ev").value.trim();
+    save();
+    var box = $("#elevenStatus");
+    if(!S.eleven.key || !S.eleven.voiceId){
+      box.innerHTML = '<div class="status"><span class="dot off"></span>Add both a key and a voice ID.</div>';
+      paintShell(); return;
+    }
+    box.innerHTML = '<div class="status"><span class="typing"><i></i><i></i><i></i></span> Testing…</div>';
+    Eleven.speak("Hello.").then(function(){
+      box.innerHTML = '<div class="status"><span class="dot on"></span>Connected. Listen is on everywhere now.</div>';
+      sfxGem(); paintShell();
+    }).catch(function(e){
+      box.innerHTML = '<div class="status"><span class="dot off"></span>' + esc(elevenErrorText(e)) + '</div>';
+      paintShell();
+    });
+  };
+
+  $("#clearEk").onclick = function(){
+    S.eleven.key = ""; save();
+    $("#ek").value = "";
+    $("#elevenStatus").innerHTML = '<div class="status"><span class="dot off"></span>Key removed from this browser. Listen falls back to your browser\'s free voice.</div>';
     sfxTap(); paintShell();
   };
 }
