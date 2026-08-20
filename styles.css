@@ -581,6 +581,26 @@ body{
 .convline b{ color:var(--cotton-3); font-weight:600; }
 .convline-empty{ color:var(--cotton-4); font-style:italic; }
 
+/* ---------- topic suggestions (conversation going quiet) ------------ */
+
+.topicbox{
+  margin-top:12px; padding:12px 14px; border-radius:var(--r-m);
+  background:rgba(242,166,90,.06); border:1px solid rgba(242,166,90,.22);
+}
+.topicprompt{
+  display:flex; align-items:center; gap:7px; font-size:13px; color:var(--cotton-3); margin-bottom:9px;
+}
+.topicprompt .gicon{ color:var(--rani); }
+.topicprompt b{ color:var(--cotton-2); font-weight:600; }
+.topicchips{ display:flex; flex-direction:column; gap:6px; }
+.topicchip{
+  text-align:left; padding:9px 12px; border-radius:10px; cursor:pointer;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton); font:500 13.5px/1.4 var(--sans);
+  transition:background .16s, border-color .16s;
+}
+.topicchip:hover{ background:var(--glass-2); border-color:var(--edge-hi); }
+.topicchip:active{ transform:scale(.98); }
+
 /* ---------- smart follow-up prediction ------------------------------ */
 
 .predicttoggle{

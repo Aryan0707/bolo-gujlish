@@ -599,6 +599,26 @@ body{
 .convline b{ color:var(--cotton-3); font-weight:600; }
 .convline-empty{ color:var(--cotton-4); font-style:italic; }
 
+/* ---------- topic suggestions (conversation going quiet) ------------ */
+
+.topicbox{
+  margin-top:12px; padding:12px 14px; border-radius:var(--r-m);
+  background:rgba(242,166,90,.06); border:1px solid rgba(242,166,90,.22);
+}
+.topicprompt{
+  display:flex; align-items:center; gap:7px; font-size:13px; color:var(--cotton-3); margin-bottom:9px;
+}
+.topicprompt .gicon{ color:var(--rani); }
+.topicprompt b{ color:var(--cotton-2); font-weight:600; }
+.topicchips{ display:flex; flex-direction:column; gap:6px; }
+.topicchip{
+  text-align:left; padding:9px 12px; border-radius:10px; cursor:pointer;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton); font:500 13.5px/1.4 var(--sans);
+  transition:background .16s, border-color .16s;
+}
+.topicchip:hover{ background:var(--glass-2); border-color:var(--edge-hi); }
+.topicchip:active{ transform:scale(.98); }
+
 /* ---------- smart follow-up prediction ------------------------------ */
 
 .predicttoggle{
@@ -936,7 +956,8 @@ var GJ_STYLE = [
   { id:"polite",  lab:"Polite" },
   { id:"funny",   lab:"Funny" },
   { id:"flirty",  lab:"Flirty" },
-  { id:"pro",     lab:"Professional" }
+  { id:"pro",     lab:"Professional" },
+  { id:"human",   lab:"Human Mode" }
 ];
 var GJ_LENGTH = [
   { id:"short",    lab:"Short" },
@@ -971,6 +992,7 @@ var gjText = { translate:"", reply:"", rewrite:"" };
 var gjCtx = "";
 var gjCtxOpen = false;
 var gjNewConvOpen = false;
+var gjTopicState = null;   /* { convId, busy, items:[...], error } — topic-suggestion generator */
 var gjResults = null;    /* { mode, cards:[{label,text}], note, detected, error } — translate mode only */
 var gjActiveGen = { reply:null, rewrite:null };  /* the live history entry backing each mode's carousel */
 var gjCarIdx    = { reply:0, rewrite:0 };        /* which generation within it is on screen */
@@ -1066,12 +1088,55 @@ function gjAppendTurn(convId, who, text){
   conv.thread.push({ who:who, text:text, ts:Date.now() });
   if(conv.thread.length > GJ_TURN_CAP) conv.thread.splice(0, conv.thread.length - GJ_TURN_CAP);
   conv.ts = Date.now();
+  if(gjTopicState && gjTopicState.convId === convId) gjTopicState = null;   /* new activity — any old suggestions are stale */
   save();
 }
 function gjFormatThread(thread, limit){
   return (thread || []).slice(-(limit || GJ_TURN_CAP)).map(function(t){
     return (t.who === "them" ? "Them: " : "Me: ") + t.text;
   }).join("\n");
+}
+/* a rough "this is going quiet" read — no real send timestamps to work
+   from, so it's word-count based: the last few turns are all short,
+   low-effort lines rather than an actual back-and forth */
+function gjConvDying(thread){
+  if(!thread || thread.length < 3) return false;
+  var recent = thread.slice(-3);
+  var words = recent.map(function(t){ return (t.text || "").trim().split(/\s+/).filter(Boolean).length; });
+  return words.every(function(n){ return n > 0 && n <= 4; });
+}
+function gjTopicSystem(relation){
+  return GJ_RULES + "\n\n" +
+    "This conversation has gone quiet — short, low-effort lines back and forth. Suggest exactly 3 short, natural lines the user could send next " +
+    "to revive it — genuinely different angles (e.g. a direct question, a callback to something said earlier in the thread, a lighthearted new topic). " +
+    "These are messages to actually send, not descriptions of topics.\n" +
+    "Who this is to: " + gjLab(GJ_RELATION, relation) + " — " + gjRelationRule(relation) + "\n\n" +
+    "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
+    '{"topics":["...","...","..."]}';
+}
+function gjRunTopics(){
+  var conv = gjConvById(S.gj.activeConv);
+  if(!conv) return;
+  gjTopicState = { convId:conv.id, busy:true, items:null, error:null };
+  renderTranslate();
+  var sys = gjTopicSystem(S.gj.relation);
+  var user = "Recent conversation, oldest first:\n" + gjFormatThread(conv.thread, 20);
+  AI.chat([{ role:"system", content:sys }, { role:"user", content:user }], 300).then(function(txt){
+    if(!gjTopicState || gjTopicState.convId !== conv.id) return;
+    var j = gjParseJson(txt);
+    gjTopicState.busy = false;
+    if(j && Array.isArray(j.topics) && j.topics.length){
+      gjTopicState.items = j.topics.slice(0, 3).map(String);
+    }else{
+      gjTopicState.error = "Couldn't get suggestions — try again.";
+    }
+    renderTranslate();
+  }).catch(function(e){
+    if(!gjTopicState || gjTopicState.convId !== conv.id) return;
+    gjTopicState.busy = false;
+    gjTopicState.error = aiErrorText(e);
+    renderTranslate();
+  });
 }
 /* a history row saved before the carousel existed only has .cards —
    read it as a one-generation session rather than migrating the file */
@@ -1207,6 +1272,18 @@ function gjRelationRule(id){
   if(id === "women")     return "Be genuinely respectful and attentive in tone.";
   return "This is a close friend — fully casual, no filter needed.";
 }
+/* "Human Mode" — the one style that isn't a tone/flavor but a directive
+   to actively strip out AI-assistant tells, since GJ_RULES alone still
+   lets a reply come out grammatically tidy and a little too eager */
+function gjStyleRule(style){
+  if(style === "human")
+    return "This reply must NOT read like it came from an AI assistant. Actively avoid: perfect grammar, overly polished sentences, " +
+      "corporate or customer-service phrasing (never anything like \"That sounds wonderful!\" or \"I would be happy to...\"), " +
+      "repetitive AI stock phrases, and any unnecessary explaining. Write it short, a little imperfect, exactly like a real person " +
+      "firing off a text on their phone — dropped words, casual punctuation, a stray emoji if it genuinely fits. " +
+      "Example — AI-ish: \"That sounds wonderful! I would be happy to make plans with you.\" Human: \"Haa 😂 kai plan kariye pachi?\"";
+  return "";
+}
 function gjStrengthRule(n){
   n = +n || 3;
   if(n <= 1) return "Very safe and mild — nothing that could read as edgy, sarcastic, or forward.";
@@ -1220,7 +1297,7 @@ function gjReplySystem(style, relation, strength){
   return GJ_RULES + "\n\n" +
     "You are replying to an incoming message on someone's behalf. Produce exactly 3 different, ready-to-send replies — " +
     "genuinely different phrasing and tone from each other, not the same sentence three times. " +
-    "Anchor the FIRST reply on this requested style: " + gjLab(GJ_STYLE, style) + ". " +
+    "Anchor the FIRST reply on this requested style: " + gjLab(GJ_STYLE, style) + ". " + gjStyleRule(style) + " " +
     "Give the other two sensible complementary alternatives (for example a more casual one and a more Gujarati-heavy one, or a more polished one — use judgement). " +
     "For every reply, invent your own short 1-3 word label describing its flavor (e.g. \"Casual\", \"Natural Gujlish\", \"More Gujarati\", \"Polite\", \"Playful\").\n" +
     "Who this is to: " + gjLab(GJ_RELATION, relation) + " — " + gjRelationRule(relation) + "\n" +
@@ -1237,7 +1314,7 @@ function gjRewriteSystem(style, relation, strength){
   return GJ_RULES + "\n\n" +
     "You are rewriting a person's own draft message so it sounds more natural, keeping their intended meaning intact. " +
     "Produce exactly 3 different rewritten versions — genuinely different phrasing and tone, not the same sentence three times. " +
-    "Anchor the FIRST version on this requested style: " + gjLab(GJ_STYLE, style) + ". " +
+    "Anchor the FIRST version on this requested style: " + gjLab(GJ_STYLE, style) + ". " + gjStyleRule(style) + " " +
     "Give the other two sensible complementary alternatives. " +
     "For every version, invent your own short 1-3 word label describing its flavor.\n" +
     "Who this is to: " + gjLab(GJ_RELATION, relation) + " — " + gjRelationRule(relation) + "\n" +
@@ -1697,6 +1774,22 @@ function gjConversationHTML(){
             : '<div class="convline convline-empty">Nothing yet — generate a reply and it starts remembering.</div>') +
         '</div>'
       : "") +
+    (conv && gjConvDying(conv.thread) ? gjTopicHTML(conv) : "") +
+  '</div>';
+}
+function gjTopicHTML(conv){
+  var st = (gjTopicState && gjTopicState.convId === conv.id) ? gjTopicState : null;
+  return '<div class="topicbox">' +
+    '<div class="topicprompt">' + gjIcon("sparkle", 13) + ' Conversation slowing down? <b>Try talking about:</b></div>' +
+    (!st
+      ? '<button class="linkbtn sm" id="gjTopicBtn">Suggest topics</button>'
+      : st.busy
+        ? '<span class="typing"><i></i><i></i><i></i></span>'
+        : st.error
+          ? '<div class="hintline">' + esc(st.error) + ' <button class="linkbtn sm" id="gjTopicBtn">Retry</button></div>'
+          : '<div class="topicchips">' + st.items.map(function(t, i){
+              return '<button class="topicchip" data-tcopy="' + i + '">' + esc(t) + '</button>';
+            }).join("") + '</div>') +
   '</div>';
 }
 function gjWireConversation(){
@@ -1704,6 +1797,7 @@ function gjWireConversation(){
     b.onclick = function(){
       S.gj.activeConv = b.getAttribute("data-convid");
       gjNewConvOpen = false;
+      gjTopicState = null;
       save(); sfxTap();
       renderTranslate();
     };
@@ -1725,7 +1819,7 @@ function gjWireConversation(){
   if(clr) clr.onclick = function(){
     var conv = gjConvById(S.gj.activeConv);
     if(conv && confirm("Clear everything remembered in “" + conv.name + "”? This can't be undone.")){
-      conv.thread = []; save(); sfxTap(); renderTranslate();
+      conv.thread = []; gjTopicState = null; save(); sfxTap(); renderTranslate();
     }
   };
   var del = $("#gjConvDelete");
@@ -1735,6 +1829,15 @@ function gjWireConversation(){
       gjDeleteConversation(conv.id); sfxTap(); renderTranslate();
     }
   };
+  var topicBtn = $("#gjTopicBtn");
+  if(topicBtn) topicBtn.onclick = function(){ sfxTap(); gjRunTopics(); };
+  each($$("[data-tcopy]"), function(b){
+    b.onclick = function(){
+      var st = gjTopicState;
+      var text = st && st.items && st.items[+b.getAttribute("data-tcopy")];
+      if(text) copyText(text, b);
+    };
+  });
 }
 
 /* ---- reply / rewrite pane (unchanged card-based UI) --------------- */
