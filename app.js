@@ -58,12 +58,13 @@ if(typeof S.sound !== "boolean") S.sound = true;
 if(!S.ai) S.ai = { key:"", model:"google/gemini-2.5-flash-lite" };
 if(!S.eleven) S.eleven = { key:"", voiceId:"" };
 if(!S.gj) S.gj = { mode:"reply", lang:"roman", trlang:"roman", style:"gujlish",
-  length:"short", texting:"natural", relation:"friend", strength:3, history:[], saved:[] };
+  length:"short", texting:"natural", relation:"friend", strength:3, emotion:"cool", history:[], saved:[] };
 if(!S.gj.history)  S.gj.history = [];
 if(!S.gj.saved)    S.gj.saved = [];
 if(!S.gj.trlang)   S.gj.trlang = "roman";
 if(!S.gj.relation) S.gj.relation = "friend";
 if(!S.gj.strength) S.gj.strength = 3;
+if(!S.gj.emotion)  S.gj.emotion = "cool";
 if(!S.gj.conversations) S.gj.conversations = [];
 if(!S.gj.activeConv)    S.gj.activeConv = "";
 
@@ -120,7 +121,8 @@ var ICON_PATHS = {
   sparkle: '<path d="M12 3.6l1.35 3.75L17.1 8.7l-3.75 1.35L12 13.8l-1.35-3.75L6.9 8.7l3.75-1.35z"/><path d="M18.6 14.5l.72 1.86 1.86.72-1.86.72-.72 1.86-.72-1.86-1.86-.72 1.86-.72z"/>',
   gear: '<circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v2.5M12 18.1v2.5M20.6 12h-2.5M5.9 12H3.4M17.9 6.1l-1.77 1.77M7.87 16.13L6.1 17.9M17.9 17.9l-1.77-1.77M7.87 7.87L6.1 6.1"/>',
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
-  share: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>'
+  share: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7"/>'
 };
 function gjIcon(name, size){
   var body = ICON_PATHS[name];
@@ -287,6 +289,7 @@ function topBar(){
 
 function go(name){
   clearTimeout(gjDebounce);   /* a pending auto-translate must not fire after you've navigated off */
+  gjSheetOpen = null;
   screen = name;
   paintShell();
   ({ translate:renderTranslate, settings:renderSettings })[name]();
@@ -362,6 +365,16 @@ var GJ_RELATION = [
   { id:"women",     lab:"Women" }
 ];
 var GJ_STRENGTH_LAB = { 1:"Very safe", 2:"Safe", 3:"Balanced", 4:"Bold", 5:"Savage" };
+var GJ_STRENGTH_LIST = [1, 2, 3, 4, 5].map(function(n){ return { id:n, lab:GJ_STRENGTH_LAB[n] }; });
+var GJ_EMOTION = [
+  { id:"happy",     lab:"Happy" },
+  { id:"angry",     lab:"Angry" },
+  { id:"sad",       lab:"Sad" },
+  { id:"romantic",  lab:"Romantic" },
+  { id:"emotional", lab:"Emotional" },
+  { id:"cool",      lab:"Cool" },
+  { id:"slang",     lab:"Slang" }
+];
 var GJ_MOOD_ICON = {
   happy:"😊", angry:"😠", dry:"😑", sarcastic:"😏", flirty:"😉",
   confused:"😕", serious:"😐", neutral:"🙂"
@@ -375,6 +388,7 @@ var gjText = { translate:"", reply:"", rewrite:"" };
 var gjCtx = "";
 var gjCtxOpen = false;
 var gjNewConvOpen = false;
+var gjSheetOpen = null;  /* which config bottom-sheet is open — a GJ_SHEETS key, or null */
 var gjTopicState = null;   /* { convId, busy, items:[...], error } — topic-suggestion generator */
 var gjResults = null;    /* { mode, cards:[{label,text}], note, detected, error } — translate mode only */
 var gjActiveGen = { reply:null, rewrite:null };  /* the live history entry backing each mode's carousel */
@@ -445,7 +459,7 @@ function gjPushHistory(entry){
 }
 function gjSameCfg(a, b){
   return !!a && !!b && a.lang === b.lang && a.style === b.style && a.length === b.length && a.texting === b.texting &&
-    a.relation === b.relation && a.strength === b.strength && (a.conv || "") === (b.conv || "");
+    a.relation === b.relation && a.strength === b.strength && a.emotion === b.emotion && (a.conv || "") === (b.conv || "");
 }
 
 /* ---- conversation memory -------------------------------------------
@@ -678,6 +692,15 @@ function gjStyleRule(style){
       "Example — AI-ish: \"That sounds wonderful! I would be happy to make plans with you.\" Human: \"Haa 😂 kai plan kariye pachi?\"";
   return "";
 }
+function gjEmotionRule(id){
+  if(id === "happy")     return "Let genuine warmth and upbeat energy come through.";
+  if(id === "angry")     return "Let real frustration or annoyance come through — sharper, more clipped phrasing.";
+  if(id === "sad")       return "Let a subdued, down mood come through — quieter, lower-energy phrasing.";
+  if(id === "romantic")  return "Write with warmth and tenderness — a little flirtatious or affectionate.";
+  if(id === "emotional") return "Let real feeling come through openly — earnest and heartfelt, not guarded.";
+  if(id === "slang")     return "Lean heavily into slang and casual shorthand — however a real friend would actually text it.";
+  return "Stay relaxed and unbothered — low-key and effortless, not overly enthusiastic.";
+}
 function gjStrengthRule(n){
   n = +n || 3;
   if(n <= 1) return "Very safe and mild — nothing that could read as edgy, sarcastic, or forward.";
@@ -687,7 +710,7 @@ function gjStrengthRule(n){
   return "Savage — sharp and unfiltered. Still not cruel or actually hurtful, just don't hold back.";
 }
 
-function gjReplySystem(style, relation, strength){
+function gjReplySystem(style, relation, strength, emotion){
   return GJ_RULES + "\n\n" +
     "You are replying to an incoming message on someone's behalf. Produce exactly 3 different, ready-to-send replies — " +
     "genuinely different phrasing and tone from each other, not the same sentence three times. " +
@@ -695,7 +718,8 @@ function gjReplySystem(style, relation, strength){
     "Give the other two sensible complementary alternatives (for example a more casual one and a more Gujarati-heavy one, or a more polished one — use judgement). " +
     "For every reply, invent your own short 1-3 word label describing its flavor (e.g. \"Casual\", \"Natural Gujlish\", \"More Gujarati\", \"Polite\", \"Playful\").\n" +
     "Who this is to: " + gjLab(GJ_RELATION, relation) + " — " + gjRelationRule(relation) + "\n" +
-    "Reply boldness: " + (GJ_STRENGTH_LAB[strength] || "Balanced") + " — " + gjStrengthRule(strength) + "\n\n" +
+    "Reply boldness: " + (GJ_STRENGTH_LAB[strength] || "Balanced") + " — " + gjStrengthRule(strength) + "\n" +
+    "Emotional tone to write in: " + gjLab(GJ_EMOTION, emotion) + " — " + gjEmotionRule(emotion) + "\n\n" +
     "Also read the incoming message's mood — one of: happy, angry, dry, sarcastic, flirty, confused, serious, neutral. " +
     "Let that genuinely inform the replies (a dry \"okay\" calls for something different than an angry one).\n" +
     "For every reply, also predict — in \"predicted\" — one short, natural line for how the other person would plausibly respond " +
@@ -704,7 +728,7 @@ function gjReplySystem(style, relation, strength){
     '{"mood":"...","replies":[{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."}]}\n' +
     '"mood" is one lowercase word from the list above. Put it first, before the longer fields, in case the response is ever cut short.';
 }
-function gjRewriteSystem(style, relation, strength){
+function gjRewriteSystem(style, relation, strength, emotion){
   return GJ_RULES + "\n\n" +
     "You are rewriting a person's own draft message so it sounds more natural, keeping their intended meaning intact. " +
     "Produce exactly 3 different rewritten versions — genuinely different phrasing and tone, not the same sentence three times. " +
@@ -713,6 +737,7 @@ function gjRewriteSystem(style, relation, strength){
     "For every version, invent your own short 1-3 word label describing its flavor.\n" +
     "Who this is to: " + gjLab(GJ_RELATION, relation) + " — " + gjRelationRule(relation) + "\n" +
     "Reply boldness: " + (GJ_STRENGTH_LAB[strength] || "Balanced") + " — " + gjStrengthRule(strength) + "\n" +
+    "Emotional tone to write in: " + gjLab(GJ_EMOTION, emotion) + " — " + gjEmotionRule(emotion) + "\n" +
     "For every version, also predict — in \"predicted\" — one short, natural line for how the recipient would plausibly respond " +
     "if this exact message were sent. Same language and register as the message itself. A real guess, not a generic one.\n\n" +
     "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
@@ -781,9 +806,9 @@ function gjRunGenerate(){
       context = mode === "reply" ? gjCtx.trim() : "";
     }
     cfg = { lang:S.gj.lang, style:S.gj.style, length:S.gj.length, texting:S.gj.texting,
-      relation:S.gj.relation, strength:S.gj.strength, conv: mode === "reply" ? S.gj.activeConv : "" };
-    sys = mode === "reply" ? gjReplySystem(S.gj.style, S.gj.relation, S.gj.strength)
-                           : gjRewriteSystem(S.gj.style, S.gj.relation, S.gj.strength);
+      relation:S.gj.relation, strength:S.gj.strength, emotion:S.gj.emotion, conv: mode === "reply" ? S.gj.activeConv : "" };
+    sys = mode === "reply" ? gjReplySystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion)
+                           : gjRewriteSystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion);
     user = (mode === "reply" ? "Incoming message: " : "Message to rewrite: ") + JSON.stringify(input) + "\n\n" +
       (mode === "reply" && context ? "Recent conversation, oldest first:\n" + context + "\n\n" : "") +
       "Output language: " + gjLab(GJ_LANG, S.gj.lang) + " — " + gjLangRule(S.gj.lang) + "\n" +
@@ -1080,29 +1105,83 @@ function gjPillRow(label, opts, cur, key){
     }).join("") + '</div>' +
   '</div>';
 }
-function gjStrengthHTML(){
-  return '<div class="cfggroup">' +
-    '<div class="cfglab">Reply boldness</div>' +
-    '<div class="strengthrow">' +
-      '<span class="strengthend">Safe</span>' +
-      [1, 2, 3, 4, 5].map(function(n){
-        return '<button class="strengthpip' + (+S.gj.strength === n ? " on" : "") + '" data-strength="' + n + '" ' +
-          'aria-label="' + esc(GJ_STRENGTH_LAB[n]) + '" title="' + esc(GJ_STRENGTH_LAB[n]) + '">' + n + '</button>';
-      }).join("") +
-      '<span class="strengthend">Savage</span>' +
+/* Language/Style/Talking-to/Emotion/Texting/Boldness used to all show as
+   full pill rows at once — every option, all the time, which got long
+   and hard to scan on a phone. Now each is a single row (current value +
+   chevron) that opens a bottom sheet to pick from; only Length stays as
+   inline pills since three options never needed the extra tap. */
+var GJ_SHEETS = {
+  lang:     { title:"Language",       list:function(){ return gjLangOpts(); },  field:"lang" },
+  style:    { title:"Reply style",    list:function(){ return GJ_STYLE; },      field:"style" },
+  relation: { title:"Talking to",     list:function(){ return GJ_RELATION; },   field:"relation" },
+  emotion:  { title:"Emotion",        list:function(){ return GJ_EMOTION; },    field:"emotion" },
+  texting:  { title:"Texting style",  list:function(){ return GJ_TEXTING; },    field:"texting" },
+  strength: { title:"Reply boldness", list:function(){ return GJ_STRENGTH_LIST; }, field:"strength", numeric:true }
+};
+function gjCfgRow(label, valueLabel, sheetKey){
+  return '<button class="cfgrow" data-sheet="' + sheetKey + '">' +
+    '<span class="cfgrow-lab">' + esc(label) + '</span>' +
+    '<span class="cfgrow-val">' + esc(valueLabel) + '</span>' +
+    gjIcon("chevronRight", 14) +
+  '</button>';
+}
+function gjSheetHTML(){
+  if(!gjSheetOpen) return "";
+  var def = GJ_SHEETS[gjSheetOpen];
+  if(!def) return "";
+  var cur = S.gj[def.field];
+  return '<div class="sheetoverlay" id="gjSheetOverlay">' +
+    '<div class="sheet panelenter">' +
+      '<div class="sheethead"><span>' + esc(def.title) + '</span>' +
+        '<button class="linkbtn sm" id="gjSheetDone">Done</button></div>' +
+      '<div class="sheetlist">' + def.list().map(function(o){
+        var on = def.numeric ? (+cur === +o.id) : (cur === o.id);
+        return '<button class="sheetopt' + (on ? " on" : "") + '" data-sheetval="' + o.id + '">' +
+          '<span>' + esc(o.lab) + '</span>' + (on ? gjIcon("check", 16) : "") +
+        '</button>';
+      }).join("") + '</div>' +
     '</div>' +
   '</div>';
 }
 function gjCfgHTML(){
-  return gjPillRow("Language", gjLangOpts(), S.gj.lang, "lang") +
-    gjPillRow("Style", GJ_STYLE, S.gj.style, "style") +
-    gjPillRow("Length", GJ_LENGTH, S.gj.length, "length") +
-    gjPillRow("Texting style", GJ_TEXTING, S.gj.texting, "texting") +
-    gjPillRow("Talking to", GJ_RELATION, S.gj.relation, "relation") +
-    gjStrengthHTML();
+  return '<div class="cfgsection">' +
+      '<div class="cfgsectionlab">Reply settings</div>' +
+      gjCfgRow("Language", gjLab(gjLangOpts(), S.gj.lang), "lang") +
+      gjCfgRow("Style", gjLab(GJ_STYLE, S.gj.style), "style") +
+      gjPillRow("Length", GJ_LENGTH, S.gj.length, "length") +
+      gjCfgRow("Talking to", gjLab(GJ_RELATION, S.gj.relation), "relation") +
+      gjCfgRow("Emotion", gjLab(GJ_EMOTION, S.gj.emotion), "emotion") +
+    '</div>' +
+    '<div class="cfgsection">' +
+      '<div class="cfgsectionlab">More</div>' +
+      gjCfgRow("Texting style", gjLab(GJ_TEXTING, S.gj.texting), "texting") +
+      gjCfgRow("Reply boldness", GJ_STRENGTH_LAB[S.gj.strength] || "Balanced", "strength") +
+    '</div>' +
+    gjSheetHTML();
+}
+function gjWireSheets(){
+  each($$("[data-sheet]"), function(b){
+    b.onclick = function(){ gjSheetOpen = b.getAttribute("data-sheet"); sfxTap(); renderTranslate(); };
+  });
+  var overlay = $("#gjSheetOverlay");
+  if(!overlay) return;
+  overlay.onclick = function(e){ if(e.target === overlay){ gjSheetOpen = null; sfxTap(); renderTranslate(); } };
+  var done = $("#gjSheetDone");
+  if(done) done.onclick = function(){ gjSheetOpen = null; sfxTap(); renderTranslate(); };
+  each($$("[data-sheetval]"), function(b){
+    b.onclick = function(){
+      var def = GJ_SHEETS[gjSheetOpen];
+      var val = b.getAttribute("data-sheetval");
+      S.gj[def.field] = def.numeric ? +val : val;
+      gjSheetOpen = null;
+      save(); sfxTap();
+      renderTranslate();
+    };
+  });
 }
 function gjWirePills(){
-  ["lang", "style", "length", "texting", "trlang", "relation"].forEach(function(key){
+  gjWireSheets();
+  ["length", "trlang"].forEach(function(key){
     each($$("[data-" + key + "]"), function(b){
       b.onclick = function(){
         S.gj[key] = b.getAttribute("data-" + key);
@@ -1117,13 +1196,6 @@ function gjWirePills(){
         }
       };
     });
-  });
-  each($$("[data-strength]"), function(b){
-    b.onclick = function(){
-      S.gj.strength = +b.getAttribute("data-strength");
-      save(); sfxTap();
-      each($$("[data-strength]"), function(x){ x.classList.toggle("on", x === b); });
-    };
   });
 }
 
@@ -1469,6 +1541,7 @@ function gjWireHistRows(){
         if(h.cfg.texting) S.gj.texting = h.cfg.texting;
         if(h.cfg.relation) S.gj.relation = h.cfg.relation;
         if(h.cfg.strength) S.gj.strength = h.cfg.strength;
+        if(h.cfg.emotion) S.gj.emotion = h.cfg.emotion;
         if(h.mode === "reply") S.gj.activeConv = h.cfg.conv || "";
       }
       if(h.mode === "translate"){
@@ -1589,6 +1662,7 @@ function renderTranslate(){
     b.onclick = function(){
       clearTimeout(gjDebounce);
       S.gj.mode = b.getAttribute("data-mode");
+      gjSheetOpen = null;
       save(); sfxTap(); gjResults = null; gjBusy = false; gjReqId++;
       renderTranslate();
     };
