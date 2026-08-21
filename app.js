@@ -1,5 +1,5 @@
 /* ================================================================
-   BOLO GUJLISH — Gujlish AI
+   FLASHREPLY — Gujlish AI
    A reply/rewrite/translate assistant for real, code-mixed
    Gujarati-English. Runs entirely on the model — real Gujlish
    spelling, code-switching, and register are not something a
@@ -9,6 +9,9 @@
 (function(){
 "use strict";
 
+/* Also hand-duplicated in the native keyboard project as
+   gujlish-keyboard/Shared/AIModels.swift — that copy doesn't update
+   itself, so mirror any add/remove/reprice here over there too. */
 var AI_MODELS = [
   { id:"google/gemini-2.5-flash-lite",       lab:"Gemini 2.5 Flash Lite",  cost:"$0.08 / 1000",
     note:"Best value for Gujlish. Google has the deepest Indic investment — the romanization data this app uses is Google Research's own." },
@@ -261,7 +264,7 @@ var TABS = [
 
 function paintShell(){
   var rail = $("#rail"), tabs = $("#tabs");
-  rail.innerHTML = '<div class="brand">Bolo<br><em>Gujlish</em></div>' +
+  rail.innerHTML = '<div class="brand">Flash<br><em>Reply</em></div>' +
     TABS.map(function(t){
       return '<button class="nav' + (screen === t.id ? " on" : "") + '" data-go="' + t.id + '">' +
              '<span class="ic">' + t.ic + '</span>' + t.t + '</button>';

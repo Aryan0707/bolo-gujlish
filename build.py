@@ -38,7 +38,7 @@ def build_body() -> str:
     markup = re.sub(r'\s*<script src="[^"]+"></script>', "", markup).strip()
 
     return "\n".join([
-        "<title>Bolo Gujlish</title>",
+        "<title>FlashReply</title>",
         "",
         "<style>",
         read("styles.css").strip(),
@@ -66,7 +66,7 @@ def main() -> None:
         '<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
         + read("head-extras.html")
-        + body.replace("<title>Bolo Gujlish</title>\n\n", "<title>Bolo Gujlish</title>\n</head>\n<body>\n", 1)
+        + body.replace("<title>FlashReply</title>\n\n", "<title>FlashReply</title>\n</head>\n<body>\n", 1)
         + "</body>\n</html>\n",
         encoding="utf-8",
     )
