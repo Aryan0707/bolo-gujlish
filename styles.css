@@ -253,6 +253,27 @@ body{
 }
 .trin::placeholder{ font-family:var(--sans); font-size:15px; color:var(--cotton-4); }
 
+/* ---------- tap-to-try examples on a blank textarea ---------------- */
+
+.examplerow{ display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:10px; }
+.examplelab{ font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--cotton-4); }
+.examplechip{
+  padding:7px 13px; border-radius:999px; border:1px dashed var(--edge); cursor:pointer;
+  background:none; color:var(--cotton-3); font:500 12.5px/1.2 var(--sans);
+  transition:background .16s, border-color .16s, color .16s;
+}
+.examplechip:hover{ background:var(--glass); border-color:var(--edge-hi); color:var(--cotton); }
+.examplechip:active{ transform:scale(.96); }
+
+/* ---------- history search ------------------------------------------ */
+
+.histsearch{ margin-bottom:10px; }
+.histsearch input{
+  width:100%; padding:11px 14px; border-radius:12px; font:inherit; font-size:14px;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton);
+}
+.histsearch input::placeholder{ color:var(--cotton-4); }
+
 .hintline{ font-size:13px; color:var(--cotton-3); line-height:1.6; margin-top:10px; }
 .hintline b{ color:var(--cotton-2); font-weight:600; }
 

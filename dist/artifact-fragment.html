@@ -256,6 +256,27 @@ body{
 }
 .trin::placeholder{ font-family:var(--sans); font-size:15px; color:var(--cotton-4); }
 
+/* ---------- tap-to-try examples on a blank textarea ---------------- */
+
+.examplerow{ display:flex; flex-wrap:wrap; align-items:center; gap:7px; margin-top:10px; }
+.examplelab{ font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--cotton-4); }
+.examplechip{
+  padding:7px 13px; border-radius:999px; border:1px dashed var(--edge); cursor:pointer;
+  background:none; color:var(--cotton-3); font:500 12.5px/1.2 var(--sans);
+  transition:background .16s, border-color .16s, color .16s;
+}
+.examplechip:hover{ background:var(--glass); border-color:var(--edge-hi); color:var(--cotton); }
+.examplechip:active{ transform:scale(.96); }
+
+/* ---------- history search ------------------------------------------ */
+
+.histsearch{ margin-bottom:10px; }
+.histsearch input{
+  width:100%; padding:11px 14px; border-radius:12px; font:inherit; font-size:14px;
+  background:var(--glass); border:1px solid var(--edge); color:var(--cotton);
+}
+.histsearch input::placeholder{ color:var(--cotton-4); }
+
 .hintline{ font-size:13px; color:var(--cotton-3); line-height:1.6; margin-top:10px; }
 .hintline b{ color:var(--cotton-2); font-weight:600; }
 
@@ -754,7 +775,8 @@ var ICON_PATHS = {
   swap: '<path d="M6 8.3h12.3m0 0l-3.6-3.6M18.3 8.3l-3.6 3.6"/><path d="M18 15.7H5.7m0 0l3.6 3.6M5.7 15.7l3.6-3.6"/>',
   sparkle: '<path d="M12 3.6l1.35 3.75L17.1 8.7l-3.75 1.35L12 13.8l-1.35-3.75L6.9 8.7l3.75-1.35z"/><path d="M18.6 14.5l.72 1.86 1.86.72-1.86.72-.72 1.86-.72-1.86-1.86-.72 1.86-.72z"/>',
   gear: '<circle cx="12" cy="12" r="3.1"/><path d="M12 3.4v2.5M12 18.1v2.5M20.6 12h-2.5M5.9 12H3.4M17.9 6.1l-1.77 1.77M7.87 16.13L6.1 17.9M17.9 17.9l-1.77-1.77M7.87 7.87L6.1 6.1"/>',
-  close: '<path d="M6 6l12 12M18 6L6 18"/>'
+  close: '<path d="M6 6l12 12M18 6L6 18"/>',
+  share: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/>'
 };
 function gjIcon(name, size){
   var body = ICON_PATHS[name];
@@ -813,10 +835,25 @@ var AI = {
     }).then(function(j){
       var m = j && j.choices && j.choices[0] && j.choices[0].message;
       if(!m || !m.content) throw new Error("Empty reply from the model.");
+      if(j.usage && j.usage.total_tokens) gjRecordUsage(model, j.usage.total_tokens);
       return m.content;
     });
   }
 };
+
+/* A rough running total for THIS session only (resets on reload, not
+   persisted) — the point is an honest "what has this actually cost so
+   far" gut-check, not a precise bill. Free/Unverified models can't be
+   priced, so those tokens just get flagged instead of guessed at. */
+var gjUsage = { tokens:0, cost:0, unpriced:false };
+var gjTtsChars = 0;
+function gjRecordUsage(model, tokens){
+  gjUsage.tokens += tokens;
+  var m = AI_MODELS.filter(function(x){ return x.id === model; })[0];
+  var priceMatch = m && m.cost && m.cost.match(/\$([\d.]+)/);
+  if(priceMatch) gjUsage.cost += (tokens / 1000) * parseFloat(priceMatch[1]);
+  else gjUsage.unpriced = true;
+}
 
 function aiErrorText(e){
   var m = (e && e.message) || String(e);
@@ -839,6 +876,7 @@ var Eleven = {
   on: function(){ return !!(S.eleven && S.eleven.key && S.eleven.voiceId); },
   speak: function(text){
     var key = S.eleven.key, voiceId = S.eleven.voiceId;
+    gjTtsChars += text.length;
     return fetch("https://api.elevenlabs.io/v1/text-to-speech/" + encodeURIComponent(voiceId), {
       method: "POST",
       headers: { "Content-Type":"application/json", "Accept":"audio/mpeg", "xi-api-key":key },
@@ -927,6 +965,22 @@ var GJ_MODES = [
   { id:"reply",      lab:"Reply" },
   { id:"rewrite",    lab:"Rewrite" }
 ];
+
+/* tap-to-try starters for a blank textarea — first thing a new visitor
+   sees is an empty box with no sense of what the app actually does */
+var GJ_EXAMPLES = {
+  translate: ["Aaje kai khas plan nathi, tu bol?", "Are you free this weekend?"],
+  reply:     ["Kal office aavish ke?", "Tu kya kar rahi hati?"],
+  rewrite:   ["hey wat r u doing 2nite, wanna hang", "cant make it today sry, next time?"]
+};
+function gjExampleChips(mode){
+  var list = GJ_EXAMPLES[mode];
+  if(!list) return "";
+  return '<div class="examplerow">' +
+    '<span class="examplelab">Try:</span>' +
+    list.map(function(t, i){ return '<button class="examplechip" data-ex="' + i + '">' + esc(t) + '</button>'; }).join("") +
+  '</div>';
+}
 var GJ_LANG = [
   { id:"roman",   lab:"Roman Gujlish" },
   { id:"script",  lab:"ગુજરાતી" },
@@ -1016,6 +1070,17 @@ function gjLegacyCopy(t){
   document.body.appendChild(ta); ta.focus(); ta.select();
   try{ document.execCommand("copy"); }catch(e){}
   document.body.removeChild(ta);
+}
+/* the native share sheet, one tap straight into WhatsApp/Instagram/SMS —
+   falls back to plain Copy wherever navigator.share isn't available
+   (most desktop browsers). A cancelled share isn't an error, just quiet. */
+function shareText(t, btn){
+  if(navigator.share){
+    sfxTap();
+    navigator.share({ text:t }).catch(function(){});
+  }else{
+    copyText(t, btn);
+  }
 }
 
 function gjPushHistory(entry){
@@ -1473,6 +1538,7 @@ function gjRenderCarousel(box, mode){
             '<div class="rcard-txt' + (looksGujScript(c.text) ? " guj" : "") + '">' + esc(c.text) + '</div>' +
             '<div class="rcard-actions">' +
               '<button class="rcard-btn primary" data-gcopy="' + i + '">Copy</button>' +
+              '<button class="rcard-btn" data-gshare="' + i + '" aria-label="Share" title="Share">' + gjIcon("share", 15) + '</button>' +
               '<button class="rcard-btn" data-gspeak="' + i + '" aria-label="Listen" title="Listen">' + gjIcon("speak", 15) + '</button>' +
               '<button class="rcard-btn bookmark' + (gjIsSaved(c.text) ? " on" : "") + '" data-gbm="' + i + '" ' +
                 'aria-label="' + (gjIsSaved(c.text) ? "Remove from saved" : "Save") + '">' + gjIcon("star", 15) + '</button>' +
@@ -1509,6 +1575,13 @@ function gjRenderCarousel(box, mode){
         copyText(text, b);
         /* copying is the closest signal we get to "I'm using this one" —
            that's what actually grows the conversation's memory */
+        if(mode === "reply" && S.gj.activeConv) gjAppendTurn(S.gj.activeConv, "me", text);
+      };
+    });
+    each($$("#gjOut [data-gshare]"), function(b){
+      b.onclick = function(){
+        var text = curCards[+b.getAttribute("data-gshare")].text;
+        shareText(text, b);
         if(mode === "reply" && S.gj.activeConv) gjAppendTurn(S.gj.activeConv, "me", text);
       };
     });
@@ -1605,6 +1678,7 @@ function gjRenderTranslateOut(box){
       '<span></span>' +
       '<span class="gticons">' +
         (canSpeak ? '<button class="gticon" id="gjSpeak" aria-label="Listen" title="Listen">' + gjIcon("speak") + '</button>' : "") +
+        '<button class="gticon" id="gjOutShare" aria-label="Share" title="Share">' + gjIcon("share") + '</button>' +
         '<button class="gticon" id="gjOutCopy" aria-label="Copy" title="Copy">' + gjIcon("copy") + '</button>' +
         '<button class="gticon bookmark' + (isSaved ? " on" : "") + '" id="gjOutSave" ' +
           'aria-label="' + (isSaved ? "Remove from saved" : "Save") + '" title="' + (isSaved ? "Remove from saved" : "Save") + '">' +
@@ -1613,6 +1687,7 @@ function gjRenderTranslateOut(box){
     '</div>';
   var sp = $("#gjSpeak");
   if(sp) sp.onclick = function(){ gjSpeak(text, SPEECH_LANG[S.gj.trlang] || "en-US", sp); };
+  $("#gjOutShare").onclick = function(){ shareText(text, $("#gjOutShare")); };
   $("#gjOutCopy").onclick = function(){ copyText(text, $("#gjOutCopy")); };
   $("#gjOutSave").onclick = function(){
     var nowSaved = gjToggleSaveCard(gjResults.cards[0], "translate");
@@ -1831,13 +1906,17 @@ function gjReplyRewritePaneHTML(mode){
   var placeholder = mode === "reply" ? "What's your plan today?" : "Paste your message here…";
   return '<textarea id="gjIn" class="trin" rows="3" placeholder="' + esc(placeholder) + '" ' +
       'autocomplete="off" spellcheck="false" aria-label="Message">' + esc(gjText[mode]) + '</textarea>' +
+    (!gjText[mode] ? gjExampleChips(mode) : "") +
     (mode === "reply" ? gjConversationHTML() + gjContextHTML() : "") +
     gjCfgHTML() +
     '<div id="gjOut"></div>';
 }
 function gjWireReplyRewritePane(mode){
   var ta = $("#gjIn");
-  ta.oninput = function(){ gjText[mode] = ta.value; };
+  ta.oninput = function(){
+    gjText[mode] = ta.value;
+    if(ta.value){ var exRow = $(".examplerow"); if(exRow) exRow.remove(); }
+  };
   ta.onkeydown = function(e){
     if(e.key === "Enter" && (e.metaKey || e.ctrlKey)){
       e.preventDefault();
@@ -1845,6 +1924,17 @@ function gjWireReplyRewritePane(mode){
       if(g && !g.disabled) g.click();
     }
   };
+  each($$("[data-ex]"), function(b){
+    b.onclick = function(){
+      var text = GJ_EXAMPLES[mode][+b.getAttribute("data-ex")];
+      gjText[mode] = text;
+      ta.value = text;
+      var exRow = $(".examplerow");
+      if(exRow) exRow.remove();
+      sfxTap();
+      ta.focus();
+    };
+  });
   if(mode === "reply"){ gjWireConversation(); gjWireContext(); }
   gjWirePills();
   gjReconcileActive(mode);
@@ -1870,6 +1960,7 @@ function gjTranslatePaneHTML(){
       '<div class="gtpane">' +
         '<textarea id="gjIn" class="gtta" placeholder="Type or paste anything…" ' +
           'autocomplete="off" spellcheck="false" aria-label="Text to translate">' + esc(gjText.translate) + '</textarea>' +
+        (!gjText.translate ? gjExampleChips("translate") : "") +
         '<div class="gtpanefoot">' +
           '<span class="gtcount" id="gjCount">' + (gjText.translate || "").length + '</span>' +
           '<span class="gticons">' +
@@ -1908,6 +1999,7 @@ function gjWireTranslatePane(){
   ta.oninput = function(){
     gjText.translate = ta.value;
     gjUpdateCount();
+    if(ta.value){ var exRow = $(".examplerow"); if(exRow) exRow.remove(); }
     clearTimeout(gjDebounce);
     if(!ta.value.trim()){
       gjResults = null; gjBusy = false; gjReqId++;
@@ -1943,6 +2035,19 @@ function gjWireTranslatePane(){
     };
   }
   wireClearX();
+  each($$("[data-ex]"), function(b){
+    b.onclick = function(){
+      var text = GJ_EXAMPLES.translate[+b.getAttribute("data-ex")];
+      gjText.translate = text;
+      ta.value = text;
+      var exRow = $(".examplerow");
+      if(exRow) exRow.remove();
+      sfxTap();
+      gjUpdateCount();
+      clearTimeout(gjDebounce);
+      gjRunGenerate();
+    };
+  });
   $("#gjSwap").onclick = gjSwapTranslate;
   gjWirePills();
   gjRenderOut();
@@ -1959,13 +2064,19 @@ function gjNoKeyHTML(){
 
 /* ---- history & saved ----------------------------------------------- */
 
-function gjHistoryPanel(){
-  if(!S.gj.history.length){
-    return '<div class="glass pad" style="margin-top:14px"><div class="hintline" style="margin:0">' +
-      'Nothing yet — your last translations, replies, and rewrites will show up here.</div></div>';
-  }
-  var out = "", lastLabel = null;
+var gjHistFilter = "";
+function gjHistMatches(h, q){
+  var gens = gjEntryGens(h);
+  var top = gens[gens.length - 1].cards[0];
+  var topText = top ? top.text : "";
+  return (h.input || "").toLowerCase().indexOf(q) !== -1 || topText.toLowerCase().indexOf(q) !== -1;
+}
+function gjHistRowsHTML(){
+  var q = gjHistFilter.trim().toLowerCase();
+  var out = "", lastLabel = null, shown = 0;
   S.gj.history.forEach(function(h, i){
+    if(q && !gjHistMatches(h, q)) return;
+    shown++;
     var label = gjDateLabel(h.ts);
     if(label !== lastLabel){ out += '<div class="histdate">' + esc(label) + '</div>'; lastLabel = label; }
     var gens = gjEntryGens(h);
@@ -1984,9 +2095,21 @@ function gjHistoryPanel(){
         'aria-label="' + (isSaved ? "Remove from saved" : "Save") + '">' + gjIcon("star") + '</button>' : "") +
     '</div>';
   });
+  if(!shown) return '<div class="hintline" style="margin:14px 4px 0">No matches.</div>';
   return '<div class="histlist">' + out + '</div>';
 }
-function gjWireHistory(){
+function gjHistoryPanel(){
+  if(!S.gj.history.length){
+    return '<div class="glass pad" style="margin-top:14px"><div class="hintline" style="margin:0">' +
+      'Nothing yet — your last translations, replies, and rewrites will show up here.</div></div>';
+  }
+  return (S.gj.history.length > 5
+    ? '<div class="histsearch"><input id="gjHistSearch" type="text" placeholder="Search history…" ' +
+        'value="' + esc(gjHistFilter) + '" autocomplete="off"></div>'
+    : "") +
+  '<div id="gjHistListWrap">' + gjHistRowsHTML() + '</div>';
+}
+function gjWireHistRows(){
   each($$(".histrow"), function(row){
     row.onclick = function(){
       var h = S.gj.history[+row.getAttribute("data-hi")];
@@ -2031,6 +2154,18 @@ function gjWireHistory(){
     };
   });
 }
+function gjWireHistory(){
+  var search = $("#gjHistSearch");
+  if(search){
+    search.oninput = function(){
+      gjHistFilter = search.value;
+      var wrap = $("#gjHistListWrap");
+      if(wrap) wrap.innerHTML = gjHistRowsHTML();
+      gjWireHistRows();
+    };
+  }
+  gjWireHistRows();
+}
 
 /* A single flat list, matching Google's Phrasebook — we only have one
    kind of saved item, so a second tab would just be empty chrome. */
@@ -2046,6 +2181,7 @@ function gjSavedPanel(){
         '<div class="savedrow-meta">' + esc(sv.label || "") + (sv.label ? " · " : "") + timeAgo(sv.ts) + '</div>' +
       '</div>' +
       '<div class="savedrow-icons">' +
+        '<button class="gticon" data-sshare="' + i + '" aria-label="Share" title="Share">' + gjIcon("share") + '</button>' +
         '<button class="gticon" data-scopy="' + i + '" aria-label="Copy" title="Copy">' + gjIcon("copy") + '</button>' +
         '<button class="gticon bookmark on" data-sdel="' + i + '" aria-label="Remove from saved" title="Remove from saved">' + gjIcon("star") + '</button>' +
       '</div>' +
@@ -2053,6 +2189,9 @@ function gjSavedPanel(){
   }).join("") + '</div>';
 }
 function gjWireSaved(){
+  each($$("[data-sshare]"), function(b){
+    b.onclick = function(){ shareText(S.gj.saved[+b.getAttribute("data-sshare")].text, b); };
+  });
   each($$("[data-scopy]"), function(b){
     b.onclick = function(){ copyText(S.gj.saved[+b.getAttribute("data-scopy")].text, b); };
   });
@@ -2134,6 +2273,20 @@ function renderSettings(){
   var models = AI_MODELS;
   if(!models.some(function(m){ return m.id === S.ai.model; })){ S.ai.model = models[0].id; save(); }
 
+  var usageLine;
+  if(!gjUsage.tokens && !gjTtsChars){
+    usageLine = "Nothing yet this session.";
+  }else{
+    var usageParts = [];
+    if(gjUsage.tokens){
+      usageParts.push(gjUsage.tokens.toLocaleString() + " tokens" +
+        (gjUsage.cost > 0 ? " (~$" + gjUsage.cost.toFixed(3) + ")" : "") +
+        (gjUsage.unpriced ? " — includes a free/unverified model, not counted in that estimate" : ""));
+    }
+    if(gjTtsChars) usageParts.push(gjTtsChars.toLocaleString() + " characters spoken via ElevenLabs");
+    usageLine = usageParts.join(" · ") + ". Rough estimate, not a bill — check openrouter.ai and elevenlabs.io for exact usage.";
+  }
+
   app.innerHTML = topBar() +
   '<div class="hero">' +
     '<div class="eyebrow">You</div>' +
@@ -2190,6 +2343,11 @@ function renderSettings(){
     '</div>' +
     '<div class="hintline">Save &amp; test speaks a short phrase out loud — that itself uses a small amount of credit.</div>' +
     '<div id="elevenStatus" style="margin-top:12px"></div>' +
+  '</div>' +
+
+  '<div class="glass pad" style="margin-bottom:14px">' +
+    '<div class="sidehead"><span>Usage this session</span></div>' +
+    '<div class="hintline" style="margin:0">' + esc(usageLine) + '</div>' +
   '</div>' +
 
   '<div class="glass pad">' +
@@ -2267,6 +2425,15 @@ function renderSettings(){
 /* ================================================================
    BOOT
    ================================================================ */
+
+/* app-shell caching only — never touches OpenRouter/ElevenLabs calls,
+   see sw.js. A silent no-op on file:// (the standalone dist build) and
+   on any browser without support. */
+if("serviceWorker" in navigator){
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+}
 
 save();
 go("translate");
