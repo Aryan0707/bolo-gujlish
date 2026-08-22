@@ -769,7 +769,7 @@ if(typeof S.sound !== "boolean") S.sound = true;
 if(!S.ai) S.ai = { key:"", model:"google/gemini-2.5-flash-lite" };
 if(!S.eleven) S.eleven = { key:"", voiceId:"" };
 if(!S.gj) S.gj = { mode:"reply", lang:"roman", trlang:"roman", style:"gujlish",
-  length:"short", texting:"natural", relation:"friend", strength:3, emotion:"cool", history:[], saved:[] };
+  length:"short", relation:"friend", strength:3, emotion:"cool", history:[], saved:[] };
 if(!S.gj.history)  S.gj.history = [];
 if(!S.gj.saved)    S.gj.saved = [];
 if(!S.gj.trlang)   S.gj.trlang = "roman";
@@ -1055,11 +1055,6 @@ var GJ_LENGTH = [
   { id:"normal",   lab:"Normal" },
   { id:"detailed", lab:"Detailed" }
 ];
-var GJ_TEXTING = [
-  { id:"clean",      lab:"Clean" },
-  { id:"natural",    lab:"Natural" },
-  { id:"verycasual", lab:"Very casual" }
-];
 var GJ_RELATION = [
   { id:"friend",    lab:"Friend" },
   { id:"crush",     lab:"Crush" },
@@ -1179,7 +1174,7 @@ function gjPushHistory(entry){
   gjRefreshCounts();
 }
 function gjSameCfg(a, b){
-  return !!a && !!b && a.lang === b.lang && a.style === b.style && a.length === b.length && a.texting === b.texting &&
+  return !!a && !!b && a.lang === b.lang && a.style === b.style && a.length === b.length &&
     a.relation === b.relation && a.strength === b.strength && a.emotion === b.emotion &&
     (a.formality || 3) === (b.formality || 3) && (a.conv || "") === (b.conv || "");
 }
@@ -1305,7 +1300,7 @@ function gjReconcileActive(mode){
   if(gjActiveGen[mode]) return;
   var top = S.gj.history[0];
   if(!top || top.mode !== mode || !top.generations) return;
-  var cfg = { lang:S.gj.lang, style:S.gj.style, length:S.gj.length, texting:S.gj.texting };
+  var cfg = { lang:S.gj.lang, style:S.gj.style, length:S.gj.length };
   var ctx = mode === "reply" ? gjCtx.trim() : "";
   if(top.input === (gjText[mode] || "").trim() && gjSameCfg(top.cfg, cfg) && (top.context || "") === ctx){
     gjActiveGen[mode] = top;
@@ -1396,11 +1391,6 @@ function gjLengthRule(len){
   if(len === "short")    return "Keep it very short — under about 8 words, the way a real quick text reply looks.";
   if(len === "detailed") return "Two short sentences — still text-message length, not an essay.";
   return "One natural sentence.";
-}
-function gjTextingRule(tx){
-  if(tx === "clean")      return "No slang, no abbreviations, no emoji.";
-  if(tx === "verycasual") return "Heavier texting style is fine — abbreviations, slang, filler words like 'bhai'/'yaar', and an emoji if it actually fits.";
-  return "Light, natural texting register — a filler word or one emoji is fine if it fits, but don't overdo it.";
 }
 function gjRelationRule(id){
   if(id === "crush")     return "This is someone you're romantically interested in — a little more thoughtful and warm, without being over the top.";
@@ -1548,7 +1538,7 @@ function gjRunGenerate(){
     }else{
       context = mode === "reply" ? gjCtx.trim() : "";
     }
-    cfg = { lang:S.gj.lang, style:S.gj.style, length:S.gj.length, texting:S.gj.texting,
+    cfg = { lang:S.gj.lang, style:S.gj.style, length:S.gj.length,
       relation:S.gj.relation, strength:S.gj.strength, emotion:S.gj.emotion, formality:S.gj.formality,
       conv: mode === "reply" ? S.gj.activeConv : "" };
     sys = mode === "reply" ? gjReplySystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion, S.gj.formality)
@@ -1556,8 +1546,7 @@ function gjRunGenerate(){
     user = (mode === "reply" ? "Incoming message: " : "Message to rewrite: ") + JSON.stringify(input) + "\n\n" +
       (mode === "reply" && context ? "Recent conversation, oldest first:\n" + context + "\n\n" : "") +
       "Output language: " + gjLab(GJ_LANG, S.gj.lang) + " — " + gjLangRule(S.gj.lang) + "\n" +
-      "Length: " + gjLab(GJ_LENGTH, S.gj.length) + " — " + gjLengthRule(S.gj.length) + "\n" +
-      "Texting style: " + gjLab(GJ_TEXTING, S.gj.texting) + " — " + gjTextingRule(S.gj.texting);
+      "Length: " + gjLab(GJ_LENGTH, S.gj.length) + " — " + gjLengthRule(S.gj.length);
     maxT = 1500;   /* romanized Gujlish tokenizes inefficiently; the predicted-reply field adds real length too */
   }
 
@@ -1575,7 +1564,7 @@ function gjRunGenerate(){
       gjResults = { mode:mode, cards:cards, note:note, detected:detected };
       gjPushHistory({
         mode:mode, input:input, context:"",
-        cfg:{ lang:S.gj.lang, trlang:S.gj.trlang, style:S.gj.style, length:S.gj.length, texting:S.gj.texting },
+        cfg:{ lang:S.gj.lang, trlang:S.gj.trlang, style:S.gj.style, length:S.gj.length },
         cards:cards, ts:Date.now()
       });
     }else{
@@ -1857,7 +1846,7 @@ function gjPillRow(label, opts, cur, key){
     }).join("") + '</div>' +
   '</div>';
 }
-/* Language/Style/Talking-to/Emotion/Texting/Boldness are native <select>
+/* Language/Style/Talking-to/Emotion/Boldness are native <select>
    elements — a custom bottom-sheet picker was tried here, but the plain
    OS picker (checkmarks, native feel) tested better, so this reverted
    back to selects grouped under section labels rather than the old
@@ -1916,7 +1905,6 @@ function gjCfgHTML(){
     '</div>' +
     '<div class="cfgsection">' +
       '<div class="cfgsectionlab">More</div>' +
-      gjSelectRow("Texting style", GJ_TEXTING, S.gj.texting, "texting") +
       gjSelectRow("Reply boldness", GJ_STRENGTH_LIST, S.gj.strength, "strength", true) +
     '</div>';
 }
@@ -2292,7 +2280,6 @@ function gjWireHistRows(){
         if(h.cfg.trlang) S.gj.trlang = h.cfg.trlang;
         if(h.cfg.style) S.gj.style = h.cfg.style;
         if(h.cfg.length) S.gj.length = h.cfg.length;
-        if(h.cfg.texting) S.gj.texting = h.cfg.texting;
         if(h.cfg.relation) S.gj.relation = h.cfg.relation;
         if(h.cfg.strength) S.gj.strength = h.cfg.strength;
         if(h.cfg.emotion) S.gj.emotion = h.cfg.emotion;
