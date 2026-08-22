@@ -370,6 +370,21 @@ body{
   font:500 14.5px/1.2 var(--sans); color:var(--cotton);
   background:none; border:0; text-align:right;
 }
+.rngrow{ flex-direction:column; align-items:stretch; gap:8px; }
+.rngwrap{ display:flex; align-items:center; gap:12px; }
+.rngwrap input[type="range"]{
+  flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px;
+  background:var(--edge); outline:none; margin:0;
+}
+.rngwrap input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%;
+  background:var(--kesari); border:2px solid var(--rani); cursor:pointer;
+}
+.rngwrap input[type="range"]::-moz-range-thumb{
+  width:18px; height:18px; border-radius:50%; background:var(--kesari); border:2px solid var(--rani); cursor:pointer;
+}
+.rngval{ font:500 13px/1.2 var(--sans); color:var(--kesari-hi); min-width:76px; text-align:right; flex:none; }
+
 /* Length keeps its inline pill row, just under the same row rhythm as
    the select rows around it rather than the old always-expanded block */
 .cfgsection > .cfggroup{ margin-top:0; padding:10px 4px; border-bottom:1px solid var(--edge); }

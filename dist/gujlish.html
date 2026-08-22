@@ -388,6 +388,21 @@ body{
   font:500 14.5px/1.2 var(--sans); color:var(--cotton);
   background:none; border:0; text-align:right;
 }
+.rngrow{ flex-direction:column; align-items:stretch; gap:8px; }
+.rngwrap{ display:flex; align-items:center; gap:12px; }
+.rngwrap input[type="range"]{
+  flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px;
+  background:var(--edge); outline:none; margin:0;
+}
+.rngwrap input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none; appearance:none; width:18px; height:18px; border-radius:50%;
+  background:var(--kesari); border:2px solid var(--rani); cursor:pointer;
+}
+.rngwrap input[type="range"]::-moz-range-thumb{
+  width:18px; height:18px; border-radius:50%; background:var(--kesari); border:2px solid var(--rani); cursor:pointer;
+}
+.rngval{ font:500 13px/1.2 var(--sans); color:var(--kesari-hi); min-width:76px; text-align:right; flex:none; }
+
 /* Length keeps its inline pill row, just under the same row rhythm as
    the select rows around it rather than the old always-expanded block */
 .cfgsection > .cfggroup{ margin-top:0; padding:10px 4px; border-bottom:1px solid var(--edge); }
@@ -768,6 +783,7 @@ if(!S.gj.trlang)   S.gj.trlang = "roman";
 if(!S.gj.relation) S.gj.relation = "friend";
 if(!S.gj.strength) S.gj.strength = 3;
 if(!S.gj.emotion)  S.gj.emotion = "cool";
+if(!S.gj.formality) S.gj.formality = 3;
 if(!S.gj.conversations) S.gj.conversations = [];
 if(!S.gj.activeConv)    S.gj.activeConv = "";
 
@@ -1072,6 +1088,10 @@ var GJ_RELATION = [
 ];
 var GJ_STRENGTH_LAB = { 1:"Very safe", 2:"Safe", 3:"Balanced", 4:"Bold", 5:"Savage" };
 var GJ_STRENGTH_LIST = [1, 2, 3, 4, 5].map(function(n){ return { id:n, lab:GJ_STRENGTH_LAB[n] }; });
+/* Quick tone default alongside Style — a slider rather than another
+   dropdown, since Formal<->Casual is genuinely a spectrum (unlike Style's
+   distinct flavors like Funny/Flirty/Human Mode, which stay a picker). */
+var GJ_FORMALITY_LAB = { 1:"Very formal", 2:"Formal", 3:"Neutral", 4:"Casual", 5:"Very casual" };
 var GJ_EMOTION = [
   { id:"happy",     lab:"Happy" },
   { id:"angry",     lab:"Angry" },
@@ -1177,7 +1197,8 @@ function gjPushHistory(entry){
 }
 function gjSameCfg(a, b){
   return !!a && !!b && a.lang === b.lang && a.style === b.style && a.length === b.length && a.texting === b.texting &&
-    a.relation === b.relation && a.strength === b.strength && a.emotion === b.emotion && (a.conv || "") === (b.conv || "");
+    a.relation === b.relation && a.strength === b.strength && a.emotion === b.emotion &&
+    (a.formality || 3) === (b.formality || 3) && (a.conv || "") === (b.conv || "");
 }
 
 /* ---- conversation memory -------------------------------------------
@@ -1427,8 +1448,16 @@ function gjStrengthRule(n){
   if(n === 4) return "Bold — confident, a bit cheeky or teasing is welcome.";
   return "Savage — sharp and unfiltered. Still not cruel or actually hurtful, just don't hold back.";
 }
+function gjFormalityRule(n){
+  n = +n || 3;
+  if(n <= 1) return "Very formal register — respectful and measured, as if writing to someone you owe real politeness to. No slang.";
+  if(n === 2) return "Formal — polite and a little proper, but not stiff.";
+  if(n === 3) return "Neutral — normal everyday tone, neither dressed up nor sloppy.";
+  if(n === 4) return "Casual — relaxed everyday texting, contractions and mild slang are fine.";
+  return "Very casual — fully loose, heavy slang and shorthand, exactly how close friends actually text.";
+}
 
-function gjReplySystem(style, relation, strength, emotion){
+function gjReplySystem(style, relation, strength, emotion, formality){
   return GJ_RULES + "\n\n" +
     "You are replying to an incoming message on someone's behalf. Produce exactly 3 different, ready-to-send replies — " +
     "genuinely different phrasing and tone from each other, not the same sentence three times. " +
@@ -1437,7 +1466,8 @@ function gjReplySystem(style, relation, strength, emotion){
     "For every reply, invent your own short 1-3 word label describing its flavor (e.g. \"Casual\", \"Natural Gujlish\", \"More Gujarati\", \"Polite\", \"Playful\").\n" +
     "Who this is to: " + gjLab(GJ_RELATION, relation) + " — " + gjRelationRule(relation) + "\n" +
     "Reply boldness: " + (GJ_STRENGTH_LAB[strength] || "Balanced") + " — " + gjStrengthRule(strength) + "\n" +
-    "Emotional tone to write in: " + gjLab(GJ_EMOTION, emotion) + " — " + gjEmotionRule(emotion) + "\n\n" +
+    "Emotional tone to write in: " + gjLab(GJ_EMOTION, emotion) + " — " + gjEmotionRule(emotion) + "\n" +
+    "Formality: " + (GJ_FORMALITY_LAB[formality] || "Neutral") + " — " + gjFormalityRule(formality) + "\n\n" +
     "Also read the incoming message's mood — one of: happy, angry, dry, sarcastic, flirty, confused, serious, neutral. " +
     "Let that genuinely inform the replies (a dry \"okay\" calls for something different than an angry one).\n" +
     "For every reply, also predict — in \"predicted\" — one short, natural line for how the other person would plausibly respond " +
@@ -1446,7 +1476,7 @@ function gjReplySystem(style, relation, strength, emotion){
     '{"mood":"...","replies":[{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."}]}\n' +
     '"mood" is one lowercase word from the list above. Put it first, before the longer fields, in case the response is ever cut short.';
 }
-function gjRewriteSystem(style, relation, strength, emotion){
+function gjRewriteSystem(style, relation, strength, emotion, formality){
   return GJ_RULES + "\n\n" +
     "You are rewriting a person's own draft message so it sounds more natural, keeping their intended meaning intact. " +
     "Produce exactly 3 different rewritten versions — genuinely different phrasing and tone, not the same sentence three times. " +
@@ -1456,6 +1486,7 @@ function gjRewriteSystem(style, relation, strength, emotion){
     "Who this is to: " + gjLab(GJ_RELATION, relation) + " — " + gjRelationRule(relation) + "\n" +
     "Reply boldness: " + (GJ_STRENGTH_LAB[strength] || "Balanced") + " — " + gjStrengthRule(strength) + "\n" +
     "Emotional tone to write in: " + gjLab(GJ_EMOTION, emotion) + " — " + gjEmotionRule(emotion) + "\n" +
+    "Formality: " + (GJ_FORMALITY_LAB[formality] || "Neutral") + " — " + gjFormalityRule(formality) + "\n" +
     "For every version, also predict — in \"predicted\" — one short, natural line for how the recipient would plausibly respond " +
     "if this exact message were sent. Same language and register as the message itself. A real guess, not a generic one.\n\n" +
     "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
@@ -1524,9 +1555,10 @@ function gjRunGenerate(){
       context = mode === "reply" ? gjCtx.trim() : "";
     }
     cfg = { lang:S.gj.lang, style:S.gj.style, length:S.gj.length, texting:S.gj.texting,
-      relation:S.gj.relation, strength:S.gj.strength, emotion:S.gj.emotion, conv: mode === "reply" ? S.gj.activeConv : "" };
-    sys = mode === "reply" ? gjReplySystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion)
-                           : gjRewriteSystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion);
+      relation:S.gj.relation, strength:S.gj.strength, emotion:S.gj.emotion, formality:S.gj.formality,
+      conv: mode === "reply" ? S.gj.activeConv : "" };
+    sys = mode === "reply" ? gjReplySystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion, S.gj.formality)
+                           : gjRewriteSystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion, S.gj.formality);
     user = (mode === "reply" ? "Incoming message: " : "Message to rewrite: ") + JSON.stringify(input) + "\n\n" +
       (mode === "reply" && context ? "Recent conversation, oldest first:\n" + context + "\n\n" : "") +
       "Output language: " + gjLab(GJ_LANG, S.gj.lang) + " — " + gjLangRule(S.gj.lang) + "\n" +
@@ -1849,11 +1881,33 @@ function gjWireSelects(){
     };
   });
 }
+function gjFormalityRowHTML(){
+  var n = +S.gj.formality || 3;
+  return '<div class="selrow rngrow">' +
+      '<label class="selrow-lab" for="rng-formality">Formality</label>' +
+      '<div class="rngwrap">' +
+        '<input type="range" id="rng-formality" min="1" max="5" step="1" value="' + n + '">' +
+        '<span class="rngval" id="rngval-formality">' + esc(GJ_FORMALITY_LAB[n]) + '</span>' +
+      '</div>' +
+    '</div>';
+}
+function gjWireFormalitySlider(){
+  var rng = $("#rng-formality");
+  if(!rng) return;
+  rng.oninput = function(){
+    var n = +rng.value;
+    S.gj.formality = n;
+    var lab = $("#rngval-formality"); if(lab) lab.textContent = GJ_FORMALITY_LAB[n];
+    save();
+  };
+  rng.onchange = function(){ sfxTap(); };
+}
 function gjCfgHTML(){
   return '<div class="cfgsection">' +
       '<div class="cfgsectionlab">Reply settings</div>' +
       gjSelectRow("Language", gjLangOpts(), S.gj.lang, "lang") +
       gjSelectRow("Style", GJ_STYLE, S.gj.style, "style") +
+      gjFormalityRowHTML() +
       gjPillRow("Length", GJ_LENGTH, S.gj.length, "length") +
       gjSelectRow("Talking to", GJ_RELATION, S.gj.relation, "relation") +
       gjSelectRow("Emotion", GJ_EMOTION, S.gj.emotion, "emotion") +
@@ -1866,6 +1920,7 @@ function gjCfgHTML(){
 }
 function gjWirePills(){
   gjWireSelects();
+  gjWireFormalitySlider();
   ["length", "trlang"].forEach(function(key){
     each($$("[data-" + key + "]"), function(b){
       b.onclick = function(){
@@ -2239,6 +2294,7 @@ function gjWireHistRows(){
         if(h.cfg.relation) S.gj.relation = h.cfg.relation;
         if(h.cfg.strength) S.gj.strength = h.cfg.strength;
         if(h.cfg.emotion) S.gj.emotion = h.cfg.emotion;
+        if(h.cfg.formality) S.gj.formality = h.cfg.formality;
         if(h.mode === "reply") S.gj.activeConv = h.cfg.conv || "";
       }
       if(h.mode === "translate"){
