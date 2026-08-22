@@ -311,9 +311,11 @@ function go(name){
    proved that trying to was worse than admitting it and using AI.
    ================================================================ */
 
+/* Reply leads since it's the mode actually used most day to day — the
+   other two stay available but no longer share equal top billing. */
 var GJ_MODES = [
-  { id:"translate", lab:"Translate" },
   { id:"reply",      lab:"Reply" },
+  { id:"translate",  lab:"Translate" },
   { id:"rewrite",    lab:"Rewrite" }
 ];
 
