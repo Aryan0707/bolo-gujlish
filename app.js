@@ -671,7 +671,11 @@ var GJ_RULES =
   "You write the way real bilingual Gujarati speakers actually text on WhatsApp and Instagram — not textbook Gujarati, and not plain English either. " +
   "Mix Gujarati and English only where it genuinely sounds natural; never force an English word in, and never force a Gujarati one either. " +
   "Roman Gujarati spelling varies between real speakers (che/chhe, hu/hun, ha/haa, kya/kyaay, bhai/bro) — don't normalize it to one 'correct' form. " +
-  "Never produce a stiff, literal, word-for-word translation.";
+  "Never produce a stiff, literal, word-for-word translation. " +
+  "Real texting is rarely one polished sentence — people fire off short fragments back to back, sometimes restating or interrupting themselves " +
+  "(for example: 'Arey baba etlo' / 'Arey baba' / 'etlo gusso kem' / 'Tane jovani utaval hoy' / 'etle vaar vaar puchu chu' — five short blunt " +
+  "bursts, not one composed line). When a reply genuinely has that impulsive, multi-beat shape, write it as 2-3 short separate lines joined by " +
+  "\\n in the same field, each line under about 5 words — but don't force this on something that's naturally just one short line.";
 
 function gjLangRule(lang){
   if(lang === "roman")
@@ -758,7 +762,8 @@ function gjReplySystem(style, relation, strength, emotion, formality){
     "if this exact message were sent. Same language and register as the reply itself, not a translation of it. A real guess, not a generic one.\n\n" +
     "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
     '{"mood":"...","replies":[{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."}]}\n' +
-    '"mood" is one lowercase word from the list above. Put it first, before the longer fields, in case the response is ever cut short.';
+    '"mood" is one lowercase word from the list above. Put it first, before the longer fields, in case the response is ever cut short. ' +
+    '"text" is normally one line, but may contain 2-3 short lines separated by \\n when a genuine burst (see above) fits better than one sentence.';
 }
 function gjRewriteSystem(style, relation, strength, emotion, formality){
   return GJ_RULES + "\n\n" +
@@ -774,7 +779,8 @@ function gjRewriteSystem(style, relation, strength, emotion, formality){
     "For every version, also predict — in \"predicted\" — one short, natural line for how the recipient would plausibly respond " +
     "if this exact message were sent. Same language and register as the message itself. A real guess, not a generic one.\n\n" +
     "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
-    '{"replies":[{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."}]}';
+    '{"replies":[{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."}]}\n' +
+    '"text" is normally one line, but may contain 2-3 short lines separated by \\n when a genuine burst (see above) fits better than one sentence.';
 }
 function gjTranslateSystem(){
   return "You translate between English, Gujarati script, and Roman Gujlish, preserving natural meaning and tone rather than translating word-for-word. " +
@@ -938,7 +944,11 @@ function gjRenderCarousel(box, mode){
               '<span class="rcard-lab">' + esc(c.label) + '</span>' +
               (i === 0 && multi ? '<span class="rcard-badge">Recommended</span>' : "") +
             '</div>' +
-            '<div class="rcard-txt' + (looksGujScript(c.text) ? " guj" : "") + '">' + esc(c.text) + '</div>' +
+            '<div class="rcard-txt' + (looksGujScript(c.text) ? " guj" : "") + '">' +
+              c.text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(l){
+                return '<div class="burstline">' + esc(l) + '</div>';
+              }).join("") +
+            '</div>' +
             '<div class="rcard-actions">' +
               '<button class="rcard-btn primary" data-gcopy="' + i + '">Copy</button>' +
               '<button class="rcard-btn" data-gshare="' + i + '" aria-label="Share" title="Share">' + gjIcon("share", 15) + '</button>' +

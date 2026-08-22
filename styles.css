@@ -428,8 +428,16 @@ body{
   color:var(--rani-hi); background:rgba(242,197,114,.16); border:1px solid rgba(242,197,114,.35);
   padding:3px 8px; border-radius:999px; flex:none;
 }
-.rcard-txt{ font-family:var(--serif); font-size:19px; line-height:1.5; color:var(--cotton); }
+.rcard-txt{ font-family:var(--serif); font-size:19px; line-height:1.5; color:var(--cotton); display:flex; flex-direction:column; gap:7px; }
 .rcard-txt.guj{ font-family:var(--guj); font-size:20px; }
+/* A burst of 2-3 fragments (real texting fires off short separate
+   messages, not one polished sentence) gets its own little bubble per
+   line, mimicking separate WhatsApp bubbles. A single line stays plain
+   text — no bubble chrome needed when there's nothing to distinguish it from. */
+.burstline:not(:only-child){
+  background:var(--glass); border:1px solid var(--edge);
+  padding:8px 13px; border-radius:14px; align-self:flex-start; max-width:92%;
+}
 .rcard-actions{ display:flex; gap:8px; margin-top:14px; }
 .rcard-btn{
   padding:8px 16px; border-radius:11px; border:1px solid var(--edge); cursor:pointer;
