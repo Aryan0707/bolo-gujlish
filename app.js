@@ -674,13 +674,19 @@ function gjBurstRule(burst){
     return "Always write the reply as a single message on one line — never split it into multiple lines for any reason, even if it naturally " +
       "has more than one beat; combine it into one flowing sentence instead.";
   var maxLines = burst === "longer" ? "3-4" : "2-3";
-  return "Real texting is rarely one smooth sentence stitched together with commas or 'and'. The moment a reply has more than one distinct beat — " +
+  var rule = "Real texting is rarely one smooth sentence stitched together with commas or 'and'. The moment a reply has more than one distinct beat — " +
     "a statement plus a follow-up question, a reaction plus a question back, two separate points — a real person sends those as SEPARATE " +
     "messages, not one composed sentence. For example, someone asked what they ate would text back 'Aaje dal-bhaat khadhu' and 'Tu shu khadhu?' " +
     "as two separate texts, never joined into one line with 'and'. An impatient exchange might look like: 'Arey baba etlo' / 'Arey baba' / " +
     "'etlo gusso kem' / 'Tane jovani utaval hoy' / 'etle vaar vaar puchu chu' — five short blunt bursts, not one line. Default to splitting into " +
     maxLines + " short separate lines (joined by \\n in the same field) whenever a reply has more than one beat — stay on one line only when " +
     "there is genuinely just a single thought with nothing else attached.";
+  if(burst === "longer")
+    rule += " Push yourself to find every distinct beat available, not just the first split you notice — a greeting or reaction, a status update, " +
+      "a feeling, a question back are each their own beat and each get their own line. Don't settle for 2 lines when a genuine 3rd or 4th beat " +
+      "is available in what's actually being said — really stretch it out into that many separate texts. Still never invent a beat that isn't " +
+      "genuinely there just to pad the count.";
+  return rule;
 }
 
 function gjLangRule(lang){
@@ -863,7 +869,8 @@ function gjRunGenerate(){
       "Output language: " + gjLab(GJ_LANG, S.gj.lang) + " — " + gjLangRule(S.gj.lang) + "\n" +
       "Length: " + gjLab(GJ_LENGTH, S.gj.length) + " — " + gjLengthRule(S.gj.length) +
       (S.gj.burst !== "off" ? "\nReminder: the multi-beat burst rule from above still applies in this output language — splitting into separate short lines is not " +
-      "an English-only trick, real Gujlish/Hinglish texting fragments exactly the same way." : "");
+      "an English-only trick, real Gujlish/Hinglish texting fragments exactly the same way." +
+      (S.gj.burst === "longer" ? " You're in Longer mode — really look for a 3rd and 4th genuine beat before settling for just 2 lines." : "") : "");
     maxT = 1500;   /* romanized Gujlish tokenizes inefficiently; the predicted-reply field adds real length too */
   }
 
