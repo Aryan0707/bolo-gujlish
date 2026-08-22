@@ -399,6 +399,8 @@ body{
 .sheetopt:hover{ background:var(--glass); }
 .sheetopt.on{ color:var(--kesari-hi); }
 .sheetopt .gicon{ color:var(--kesari); }
+.sheetopt .guj{ font-family:var(--guj); font-size:16px; }
+.sheetopt-cost{ color:var(--cotton-4); font-size:13px; font-weight:400; }
 
 .linkbtn{
   background:none; border:none; cursor:pointer; padding:6px 2px;
