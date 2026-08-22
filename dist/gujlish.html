@@ -1022,7 +1022,9 @@ function topBar(){
 
 function go(name){
   clearTimeout(gjDebounce);   /* a pending auto-translate must not fire after you've navigated off */
+  if(gjSheetOpen || gjModelSheetOpen) gjUnlockScroll();
   gjSheetOpen = null;
+  gjModelSheetOpen = false;
   screen = name;
   paintShell();
   ({ translate:renderTranslate, settings:renderSettings })[name]();
@@ -1123,6 +1125,26 @@ var gjCtxOpen = false;
 var gjNewConvOpen = false;
 var gjSheetOpen = null;  /* which config bottom-sheet is open — a GJ_SHEETS key, or null */
 var gjModelSheetOpen = false;  /* Settings' own model picker sheet — separate screen, separate state */
+
+/* A sheet is a fixed-position overlay, but without this the page behind
+   it still scrolls along with a touch-drag inside the sheet's own list
+   on mobile, and a full re-render on open/select/close can otherwise
+   leave you scrolled somewhere you weren't. Locks the body in place at
+   its current scroll offset while a sheet is open, and restores that
+   exact offset — not the top of the page — once it closes. */
+var gjScrollLockY = 0;
+function gjLockScroll(){
+  gjScrollLockY = window.scrollY;
+  document.body.style.position = "fixed";
+  document.body.style.top = "-" + gjScrollLockY + "px";
+  document.body.style.width = "100%";
+}
+function gjUnlockScroll(){
+  document.body.style.position = "";
+  document.body.style.top = "";
+  document.body.style.width = "";
+  window.scrollTo(0, gjScrollLockY);
+}
 var gjTopicState = null;   /* { convId, busy, items:[...], error } — topic-suggestion generator */
 var gjResults = null;    /* { mode, cards:[{label,text}], note, detected, error } — translate mode only */
 var gjActiveGen = { reply:null, rewrite:null };  /* the live history entry backing each mode's carousel */
@@ -1921,19 +1943,20 @@ function gjCfgHTML(){
 }
 function gjWireSheets(){
   each($$("[data-sheet]"), function(b){
-    b.onclick = function(){ gjSheetOpen = b.getAttribute("data-sheet"); sfxTap(); renderTranslate(); };
+    b.onclick = function(){ gjSheetOpen = b.getAttribute("data-sheet"); gjLockScroll(); sfxTap(); renderTranslate(); };
   });
   var overlay = $("#gjSheetOverlay");
   if(!overlay) return;
-  overlay.onclick = function(e){ if(e.target === overlay){ gjSheetOpen = null; sfxTap(); renderTranslate(); } };
+  overlay.onclick = function(e){ if(e.target === overlay){ gjSheetOpen = null; gjUnlockScroll(); sfxTap(); renderTranslate(); } };
   var done = $("#gjSheetDone");
-  if(done) done.onclick = function(){ gjSheetOpen = null; sfxTap(); renderTranslate(); };
+  if(done) done.onclick = function(){ gjSheetOpen = null; gjUnlockScroll(); sfxTap(); renderTranslate(); };
   each($$("[data-sheetval]"), function(b){
     b.onclick = function(){
       var def = GJ_SHEETS[gjSheetOpen];
       var val = b.getAttribute("data-sheetval");
       S.gj[def.field] = def.numeric ? +val : val;
       gjSheetOpen = null;
+      gjUnlockScroll();
       save(); sfxTap();
       renderTranslate();
     };
@@ -2609,10 +2632,25 @@ function renderSettings(){
 
 /* app-shell caching only — never touches OpenRouter/ElevenLabs calls,
    see sw.js. A silent no-op on file:// (the standalone dist build) and
-   on any browser without support. */
+   on any browser without support.
+
+   Reloading once when a new service worker takes control is what
+   actually gets a fresh deploy in front of you promptly — without it,
+   an old cached shell can keep answering for a surprisingly long time
+   on iOS Safari in particular, since it only checks for a new sw.js
+   lazily rather than on every load. sw.js's own CACHE name also gets a
+   fresh version stamp on every deploy (see deploy.sh) so the old
+   cached shell is actually evicted once the new one activates, not
+   just outvoted. */
 if("serviceWorker" in navigator){
   window.addEventListener("load", function(){
     navigator.serviceWorker.register("sw.js").catch(function(){});
+  });
+  var gjSwReloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function(){
+    if(gjSwReloaded) return;
+    gjSwReloaded = true;
+    location.reload();
   });
 }
 

@@ -17,6 +17,9 @@ python3 build.py
 echo "==> Syncing docs/index.html (GitHub Pages)"
 cp dist/gujlish.html docs/index.html
 
+echo "==> Stamping docs/sw.js with a fresh cache version"
+sed "s/__BUILD__/$(date +%s)/" sw.js > docs/sw.js
+
 if [ -d "$(dirname "$MOBILE_HTML")" ]; then
   echo "==> Syncing gujlish-mobile's bundled copy"
   cp dist/gujlish.html "$MOBILE_HTML"

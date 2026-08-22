@@ -1,8 +1,15 @@
 /* Caches only the app shell itself (this one page) so repeat opens are
    instant and the app still loads with no network at all. Everything
    else — OpenRouter, ElevenLabs — is left completely alone; a service
-   worker sitting in front of those calls would be actively wrong. */
-var CACHE = "bolo-gujlish-shell-v1";
+   worker sitting in front of those calls would be actively wrong.
+
+   __BUILD__ is substituted with a real timestamp by deploy.sh on every
+   deploy (this file, as checked in, is the template) — a fixed
+   version string here meant the old cached shell never actually got
+   evicted from one deploy to the next, just outvoted by the
+   network-first fetch handler below, which isn't the same thing on a
+   browser that serves this file itself from its own HTTP cache first. */
+var CACHE = "bolo-gujlish-shell-__BUILD__";
 
 self.addEventListener("install", function(event){
   event.waitUntil(
