@@ -385,6 +385,18 @@ var GJ_MOOD_ICON = {
 function gjLab(list, id){ var m = list.filter(function(o){ return o.id === id; })[0]; return m ? m.lab : id; }
 function gjModeLab(id){ return gjLab(GJ_MODES, id); }
 function looksGujScript(s){ return /[઀-૿]/.test(String(s)); }
+/* A quick, deliberately imperfect client-side guess at what output
+   language makes sense for what you just typed — good enough for a
+   smart DEFAULT, not meant to replace the model's own real detection.
+   Gujarati script or clearly Gujlish input → you probably want it in
+   plain English; anything else → the app's whole point is turning
+   English into Gujlish, so that's the default direction. */
+function gjGuessTargetLang(input){
+  var t = String(input).toLowerCase();
+  if(looksGujScript(t)) return "english";
+  if(/\b(che|chhe|hu|hun|nathi|karo|karu|kem|kya|kyare|kevi|kyaay|tame|tu|aaje|kale|bhai|yaar)\b/.test(t)) return "english";
+  return "roman";
+}
 
 /* per-mode drafts, so switching modes never loses what you typed */
 var gjText = { translate:"", reply:"", rewrite:"" };
@@ -399,6 +411,7 @@ var gjGenError  = { reply:null, rewrite:null };  /* set only when there's no car
 var gjBusy = false;
 var gjReqId = 0;         /* bumped per request, so a slow abandoned call can't clobber a newer one */
 var gjDebounce = null;   /* translate mode fires ~1s after typing stops, Google-style */
+var gjTrlangManual = false;  /* true once you've manually tapped a target-language pill this input — stops auto-guessing from fighting your choice, resets when the input is cleared */
 var gjHistOpen = false;
 var gjSavedOpen = false;
 
@@ -1156,12 +1169,15 @@ function gjWirePills(){
         S.gj[key] = b.getAttribute("data-" + key);
         save(); sfxTap();
         each($$("[data-" + key + "]"), function(x){ x.classList.toggle("on", x === b); });
-        /* the target language is part of the translation itself, so
-           switching it re-runs immediately rather than waiting on
-           another edit to the text */
-        if(key === "trlang" && S.gj.mode === "translate" && gjText.translate.trim()){
-          clearTimeout(gjDebounce);
-          gjRunGenerate();
+        if(key === "trlang" && S.gj.mode === "translate"){
+          gjTrlangManual = true;   /* a real tap always wins over the auto-guess, even before you've typed anything */
+          /* the target language is part of the translation itself, so
+             switching it re-runs immediately rather than waiting on
+             another edit to the text */
+          if(gjText.translate.trim()){
+            clearTimeout(gjDebounce);
+            gjRunGenerate();
+          }
         }
       };
     });
@@ -1388,9 +1404,18 @@ function gjWireTranslatePane(){
     clearTimeout(gjDebounce);
     if(!ta.value.trim()){
       gjResults = null; gjBusy = false; gjReqId++;
+      gjTrlangManual = false;   /* a cleared box starts fresh — next thing you type gets auto-guessed again */
       gjRenderOut(); gjUpdateSwap();
       var x = $("#gjClearX"); if(x) x.remove();
       return;
+    }
+    if(!gjTrlangManual){
+      var guess = gjGuessTargetLang(ta.value);
+      if(guess !== S.gj.trlang){
+        S.gj.trlang = guess;
+        save();
+        each($$("[data-trlang]"), function(x){ x.classList.toggle("on", x.getAttribute("data-trlang") === guess); });
+      }
     }
     if(!$("#gjClearX")){
       var foot = $(".gtpanefoot .gticons");
