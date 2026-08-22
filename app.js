@@ -62,6 +62,10 @@ if(!S.gj) S.gj = { mode:"reply", lang:"roman", trlang:"roman", style:"gujlish",
 if(!S.gj.history)  S.gj.history = [];
 if(!S.gj.saved)    S.gj.saved = [];
 if(!S.gj.trlang)   S.gj.trlang = "roman";
+/* "script" (ગુજરાતી) was removed as a language option in favor of Hinglish —
+   anyone whose saved preference still points at it falls back to Roman Gujlish. */
+if(S.gj.trlang === "script") S.gj.trlang = "roman";
+if(S.gj.lang === "script")   S.gj.lang = "roman";
 if(!S.gj.relation) S.gj.relation = "friend";
 if(!S.gj.strength) S.gj.strength = 3;
 if(!S.gj.emotion)  S.gj.emotion = "cool";
@@ -145,19 +149,6 @@ function toast(msg){
 
 var REDUCED = false;
 try{ REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches; }catch(e){}
-
-/* Gujarati script availability — hide it rather than render tofu boxes */
-var HAS_GUJ = true;
-(function detectGujarati(){
-  try{
-    var c = document.createElement("canvas").getContext("2d");
-    c.font = '32px "Gujarati Sangam MN","Nirmala UI","Shruti","Noto Sans Gujarati","Gujarati MT",sans-serif';
-    var a = c.measureText("કેમ").width;
-    c.font = "32px monospace";
-    var b = c.measureText("કેમ").width;
-    if(Math.abs(a - b) < 0.5){ HAS_GUJ = false; document.body.classList.add("no-guj"); }
-  }catch(e){}
-})();
 
 /* ================================================================
    AI (optional, local only)
@@ -335,13 +326,10 @@ function gjExampleChips(mode){
   '</div>';
 }
 var GJ_LANG = [
-  { id:"roman",   lab:"Roman Gujlish" },
-  { id:"script",  lab:"ગુજરાતી" },
-  { id:"english", lab:"English" }
+  { id:"roman",    lab:"Roman Gujlish" },
+  { id:"english",  lab:"English" },
+  { id:"hinglish", lab:"Hinglish" }
 ];
-/* offered only where the device can actually render it — otherwise
-   "script" mode would just draw tofu boxes instead of Gujarati */
-function gjLangOpts(){ return HAS_GUJ ? GJ_LANG : GJ_LANG.filter(function(o){ return o.id !== "script"; }); }
 var GJ_STYLE = [
   { id:"casual",  lab:"Casual" },
   { id:"gujlish", lab:"Natural Gujlish" },
@@ -686,9 +674,11 @@ function gjLangRule(lang){
       "for example 'Haa bhai, hu free chu aaje raate' or 'Aaje kai plan nathi yaar'. " +
       "This must actually be Gujarati, not plain English written in Roman letters — keep an English word only where a real speaker naturally would " +
       "(like 'meeting', 'plan', 'call'), never write the whole reply in English. No Gujarati Unicode.";
-  if(lang === "script")
-    return "Write in natural Gujarati Unicode script — the same natural code-mixed register people actually text in, not a stiff formal-Gujarati translation, " +
-      "and not plain English.";
+  if(lang === "hinglish")
+    return "Write in Hinglish: real Hindi words and grammar spelled in Latin letters, mixed with English the way Hindi-English bilingual speakers " +
+      "actually text — for example 'Haan yaar, aaj free hoon raat ko' or 'Kal ka plan kya hai bata'. " +
+      "This must actually be Hindi, not Gujarati and not plain English written in Roman letters — keep an English word only where a real speaker " +
+      "naturally would, never write the whole reply in English. No Devanagari script.";
   return "Write in plain, casual English.";
 }
 function gjLengthRule(len){
@@ -786,11 +776,11 @@ function gjRewriteSystem(style, relation, strength, emotion, formality){
     '"text" should split into 2-3 short lines separated by \\n whenever the reply has more than one beat (see above) — one line only when there\'s genuinely just a single thought.';
 }
 function gjTranslateSystem(){
-  return "You translate between English, Gujarati script, and Roman Gujlish, preserving natural meaning and tone rather than translating word-for-word. " +
-    "The input may itself already be code-mixed Gujlish — that is normal; translate what it actually means. Detect the input language yourself.\n\n" +
+  return "You translate between English, Roman Gujlish, and Hinglish, preserving natural meaning and tone rather than translating word-for-word. " +
+    "The input may itself already be code-mixed Gujlish or Hinglish — that is normal; translate what it actually means. Detect the input language yourself.\n\n" +
     "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
     '{"detected":"...","translation":"...","note":""}\n' +
-    '"detected" is one short word for what you read: "Gujlish", "Gujarati", or "English". Put it first in the JSON, before the longer fields, ' +
+    '"detected" is one short word for what you read: "Gujlish", "Hinglish", or "English". Put it first in the JSON, before the longer fields, ' +
     "in case the response is ever cut short.\n" +
     '"note" is optional — leave it empty unless there is a genuinely useful nuance (idiom, ambiguity, register) worth one short line. Do not add filler notes.';
 }
@@ -1066,7 +1056,11 @@ function gjWireSwipe(el, mode){
 /* the Google-style right-hand pane: a plain block of text, not a
    card — the shape only makes sense because translate mode always
    produces exactly one answer, unlike reply/rewrite's three */
-var SPEECH_LANG = { script:"gu-IN", english:"en-US" };
+/* roman Gujlish and Hinglish are both romanized code-mixed speech — a
+   generic TTS voice reads the Latin letters as English and mangles them,
+   so only plain English gets the free browser voice; the others need
+   ElevenLabs (see canSpeak below). */
+var SPEECH_LANG = { english:"en-US" };
 function gjRenderTranslateOut(box){
   gjRefreshDetected();
   gjUpdateSwap();
@@ -1083,9 +1077,9 @@ function gjRenderTranslateOut(box){
     return;
   }
   var text = gjResults.cards[0].text;
-  /* ElevenLabs handles code-mixed Gujlish far better than the browser's
-     built-in voice, so once it's configured the Listen button stops
-     being limited to script/English only */
+  /* ElevenLabs handles code-mixed Gujlish/Hinglish far better than the
+     browser's built-in voice, so once it's configured the Listen button
+     stops being limited to plain English only */
   var canSpeak = Eleven.on() || !!(window.speechSynthesis && SPEECH_LANG[S.gj.trlang]);
   var isSaved = gjIsSaved(text);
   box.innerHTML = '<div class="gtout-txt' + (looksGujScript(text) ? " guj" : "") + '">' + esc(text) + '</div>' +
@@ -1202,7 +1196,7 @@ function gjWireFormalitySlider(){
 function gjCfgHTML(){
   return '<div class="cfgsection">' +
       '<div class="cfgsectionlab">Reply settings</div>' +
-      gjSelectRow("Language", gjLangOpts(), S.gj.lang, "lang") +
+      gjSelectRow("Language", GJ_LANG, S.gj.lang, "lang") +
       gjSelectRow("Style", GJ_STYLE, S.gj.style, "style") +
       gjFormalityRowHTML() +
       gjPillRow("Length", GJ_LENGTH, S.gj.length, "length") +
@@ -1408,7 +1402,7 @@ function gjTranslatePaneHTML(){
       '</div>' +
       '<button class="gtswap" id="gjSwap" aria-label="Use translation as new input" title="Use translation as new input"' +
         (canSwap ? "" : " disabled") + '>' + gjIcon("swap", 15) + '</button>' +
-      '<div class="pillrow gtto">' + gjLangOpts().map(function(o){
+      '<div class="pillrow gtto">' + GJ_LANG.map(function(o){
         return '<button class="pill' + (S.gj.trlang === o.id ? " on" : "") + '" data-trlang="' + o.id + '">' + esc(o.lab) + '</button>';
       }).join("") + '</div>' +
     '</div>' +
@@ -1686,7 +1680,7 @@ function renderTranslate(){
     ? "Paste what they sent you and get three ready-to-send replies."
     : mode === "rewrite"
     ? "Paste your own draft and get three more natural versions."
-    : "Translate between English, Roman Gujlish, and Gujarati script — by meaning, not word for word.";
+    : "Translate between English, Roman Gujlish, and Hinglish — by meaning, not word for word.";
 
   app.innerHTML = topBar() +
   '<div class="hero">' +
