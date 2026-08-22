@@ -259,8 +259,12 @@ function elevenErrorText(e){
    ================================================================ */
 
 var screen = "translate";
+/* label says "Assistant", not "Translate" — the screen inside holds
+   Translate/Reply/Rewrite as its own mode switcher, so naming the nav
+   item after just one of those modes collided with whichever mode was
+   actually active (the nav stayed lit on "Translate" even in Reply) */
 var TABS = [
-  { id:"translate", ic:gjIcon("swap", 18), t:"Translate" },
+  { id:"translate", ic:gjIcon("swap", 18), t:"Assistant" },
   { id:"settings",  ic:gjIcon("gear", 18), t:"You" }
 ];
 
@@ -1724,10 +1728,20 @@ function renderSettings(){
     '</div>' +
     '<div class="field">' +
       '<label for="m">Model</label>' +
-      '<select id="m">' + models.map(function(m){
-        return '<option value="' + esc(m.id) + '"' + (S.ai.model === m.id ? " selected" : "") +
-               '>' + esc(m.lab) + ' — ' + esc(m.cost) + '</option>';
-      }).join("") + '</select>' +
+      '<select id="m">' +
+        '<optgroup label="Models">' + models.filter(function(m){ return m.cost !== "Unverified"; }).map(function(m){
+          return '<option value="' + esc(m.id) + '"' + (S.ai.model === m.id ? " selected" : "") +
+                 '>' + esc(m.lab) + ' — ' + esc(m.cost) + '</option>';
+        }).join("") + '</optgroup>' +
+        /* these five were added on request without a confirmed price or
+           quality check — "Unverified" sitting in the price slot read
+           like a real cost, so they get their own group instead and no
+           fake price at all; the note below still spells out the caveat */
+        '<optgroup label="Not yet verified">' + models.filter(function(m){ return m.cost === "Unverified"; }).map(function(m){
+          return '<option value="' + esc(m.id) + '"' + (S.ai.model === m.id ? " selected" : "") +
+                 '>' + esc(m.lab) + '</option>';
+        }).join("") + '</optgroup>' +
+      '</select>' +
       '<div class="hint" id="mnote"></div>' +
     '</div>' +
     '<div class="rowbtns">' +
@@ -1783,7 +1797,7 @@ function renderSettings(){
     var sel = $("#m"), box = $("#mnote");
     if(!sel || !box) return;
     var m = models.filter(function(x){ return x.id === sel.value; })[0];
-    box.innerHTML = m ? esc(m.note) + ' <span style="color:var(--cotton-4)">· ' + esc(m.id) + '</span>' : "";
+    box.innerHTML = m ? esc(m.note) : "";
   }
   var msel = $("#m");
   if(msel) msel.onchange = showNote;
