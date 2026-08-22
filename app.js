@@ -679,8 +679,10 @@ function gjBurstRule(burst){
     "messages, not one composed sentence. For example, someone asked what they ate would text back 'Aaje dal-bhaat khadhu' and 'Tu shu khadhu?' " +
     "as two separate texts, never joined into one line with 'and'. An impatient exchange might look like: 'Arey baba etlo' / 'Arey baba' / " +
     "'etlo gusso kem' / 'Tane jovani utaval hoy' / 'etle vaar vaar puchu chu' — five short blunt bursts, not one line. Default to splitting into " +
-    maxLines + " short separate lines (joined by \\n in the same field) whenever a reply has more than one beat — stay on one line only when " +
-    "there is genuinely just a single thought with nothing else attached. " +
+    maxLines + " separate lines (joined by \\n in the same field) whenever a reply has more than one beat — stay on one line only when " +
+    "there is genuinely just a single thought with nothing else attached. This rule only controls how many separate lines/messages there are — " +
+    "how many words each individual line gets is set separately by the Length instruction elsewhere in this prompt, so follow that for per-line " +
+    "wording regardless of how many lines you end up with. " +
     "HARD RULE: never write a comma inside a single line of the reply. A comma is not punctuation here — it's a sign you're about to put two " +
     "beats on one line, which you must not do. The instant you're about to type a comma, put a line break there instead, including right after " +
     "an opening word like 'Haa'/'Ha'/'Arey' — that opener gets split onto its own line too, not left attached to what follows with a comma. " +
@@ -709,10 +711,16 @@ function gjLangRule(lang){
       "naturally would, never write the whole reply in English. No Devanagari script.";
   return "Write in plain, casual English.";
 }
+/* Length is about how much EACH individual line carries, not how many
+   lines the reply has — that's a separate axis, controlled entirely by
+   Message bursts below. Keeping these two rules from overlapping is what
+   makes every Length+Burst combination (e.g. Short+Longer = several
+   short punchy lines, Detailed+Off = one fuller single message) actually
+   make sense instead of silently contradicting each other. */
 function gjLengthRule(len){
-  if(len === "short")    return "Keep it very short — under about 8 words, the way a real quick text reply looks.";
-  if(len === "detailed") return "Two short sentences — still text-message length, not an essay.";
-  return "One natural sentence.";
+  if(len === "short")    return "Keep each individual line very short — under about 5 words per line, the way a real quick text looks. This is about how terse each line is, not how many lines there are.";
+  if(len === "detailed") return "Each individual line can be a bit fuller — up to about 12-15 words, still one natural text-message line, never a paragraph. This is about how much each line carries, not how many lines there are.";
+  return "Each individual line is one normal, natural sentence — under about 8-10 words, ordinary texting length. This is about how much each line carries, not how many lines there are.";
 }
 function gjRelationRule(id){
   if(id === "crush")     return "This is someone you're romantically interested in — a little more thoughtful and warm, without being over the top.";
