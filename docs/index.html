@@ -1561,7 +1561,9 @@ function gjRunGenerate(){
     user = (mode === "reply" ? "Incoming message: " : "Message to rewrite: ") + JSON.stringify(input) + "\n\n" +
       (mode === "reply" && context ? "Recent conversation, oldest first:\n" + context + "\n\n" : "") +
       "Output language: " + gjLab(GJ_LANG, S.gj.lang) + " — " + gjLangRule(S.gj.lang) + "\n" +
-      "Length: " + gjLab(GJ_LENGTH, S.gj.length) + " — " + gjLengthRule(S.gj.length);
+      "Length: " + gjLab(GJ_LENGTH, S.gj.length) + " — " + gjLengthRule(S.gj.length) + "\n" +
+      "Reminder: the multi-beat burst rule from above still applies in this output language — splitting into separate short lines is not " +
+      "an English-only trick, real Gujlish/Hinglish texting fragments exactly the same way.";
     maxT = 1500;   /* romanized Gujlish tokenizes inefficiently; the predicted-reply field adds real length too */
   }
 
