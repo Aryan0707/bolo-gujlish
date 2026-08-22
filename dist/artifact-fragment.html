@@ -781,6 +781,7 @@ if(!S.gj.relation) S.gj.relation = "friend";
 if(!S.gj.strength) S.gj.strength = 3;
 if(!S.gj.emotion)  S.gj.emotion = "cool";
 if(!S.gj.formality) S.gj.formality = 3;
+if(!S.gj.burst) S.gj.burst = "natural";
 if(!S.gj.conversations) S.gj.conversations = [];
 if(!S.gj.activeConv)    S.gj.activeConv = "";
 
@@ -1176,7 +1177,8 @@ function gjPushHistory(entry){
 function gjSameCfg(a, b){
   return !!a && !!b && a.lang === b.lang && a.style === b.style && a.length === b.length &&
     a.relation === b.relation && a.strength === b.strength && a.emotion === b.emotion &&
-    (a.formality || 3) === (b.formality || 3) && (a.conv || "") === (b.conv || "");
+    (a.formality || 3) === (b.formality || 3) && (a.burst || "natural") === (b.burst || "natural") &&
+    (a.conv || "") === (b.conv || "");
 }
 
 /* ---- conversation memory -------------------------------------------
@@ -1365,14 +1367,32 @@ var GJ_RULES =
   "You write the way real bilingual Gujarati speakers actually text on WhatsApp and Instagram — not textbook Gujarati, and not plain English either. " +
   "Mix Gujarati and English only where it genuinely sounds natural; never force an English word in, and never force a Gujarati one either. " +
   "Roman Gujarati spelling varies between real speakers (che/chhe, hu/hun, ha/haa, kya/kyaay, bhai/bro) — don't normalize it to one 'correct' form. " +
-  "Never produce a stiff, literal, word-for-word translation. " +
-  "Real texting is rarely one smooth sentence stitched together with commas or 'and'. The moment a reply has more than one distinct beat — " +
-  "a statement plus a follow-up question, a reaction plus a question back, two separate points — a real person sends those as SEPARATE " +
-  "messages, not one composed sentence. For example, someone asked what they ate would text back 'Aaje dal-bhaat khadhu' and 'Tu shu khadhu?' " +
-  "as two separate texts, never joined into one line with 'and'. An impatient exchange might look like: 'Arey baba etlo' / 'Arey baba' / " +
-  "'etlo gusso kem' / 'Tane jovani utaval hoy' / 'etle vaar vaar puchu chu' — five short blunt bursts, not one line. Default to splitting into " +
-  "2-3 short separate lines (joined by \\n in the same field) whenever a reply has more than one beat — stay on one line only when there is " +
-  "genuinely just a single thought with nothing else attached.";
+  "Never produce a stiff, literal, word-for-word translation.";
+
+var GJ_BURST = [
+  { id:"off",     lab:"Off" },
+  { id:"natural", lab:"Natural" },
+  { id:"longer",  lab:"Longer" }
+];
+/* Real texting is rarely one smooth sentence stitched together with commas
+   or "and" — a reply with more than one distinct beat (a statement plus a
+   follow-up question, a reaction plus a question back) usually goes out as
+   separate messages instead. This is model judgment, not a hard rule, so
+   it's a genuine setting rather than always-on: Off keeps everything one
+   message, Natural is the original 2-3 line behavior, Longer allows up to 4. */
+function gjBurstRule(burst){
+  if(burst === "off")
+    return "Always write the reply as a single message on one line — never split it into multiple lines for any reason, even if it naturally " +
+      "has more than one beat; combine it into one flowing sentence instead.";
+  var maxLines = burst === "longer" ? "3-4" : "2-3";
+  return "Real texting is rarely one smooth sentence stitched together with commas or 'and'. The moment a reply has more than one distinct beat — " +
+    "a statement plus a follow-up question, a reaction plus a question back, two separate points — a real person sends those as SEPARATE " +
+    "messages, not one composed sentence. For example, someone asked what they ate would text back 'Aaje dal-bhaat khadhu' and 'Tu shu khadhu?' " +
+    "as two separate texts, never joined into one line with 'and'. An impatient exchange might look like: 'Arey baba etlo' / 'Arey baba' / " +
+    "'etlo gusso kem' / 'Tane jovani utaval hoy' / 'etle vaar vaar puchu chu' — five short blunt bursts, not one line. Default to splitting into " +
+    maxLines + " short separate lines (joined by \\n in the same field) whenever a reply has more than one beat — stay on one line only when " +
+    "there is genuinely just a single thought with nothing else attached.";
+}
 
 function gjLangRule(lang){
   if(lang === "roman")
@@ -1439,8 +1459,14 @@ function gjFormalityRule(n){
   return "Very casual — fully loose, heavy slang and shorthand, exactly how close friends actually text.";
 }
 
-function gjReplySystem(style, relation, strength, emotion, formality){
-  return GJ_RULES + "\n\n" +
+function gjBurstJsonHint(burst){
+  if(burst === "off")
+    return '"text" is always a single line — never split it, even if the reply has more than one beat.';
+  var maxLines = burst === "longer" ? "3-4" : "2-3";
+  return '"text" should split into ' + maxLines + ' short lines separated by \\n whenever the reply has more than one beat (see above) — one line only when there\'s genuinely just a single thought.';
+}
+function gjReplySystem(style, relation, strength, emotion, formality, burst){
+  return GJ_RULES + "\n\n" + gjBurstRule(burst) + "\n\n" +
     "You are replying to an incoming message on someone's behalf. Produce exactly 3 different, ready-to-send replies — " +
     "genuinely different phrasing and tone from each other, not the same sentence three times. " +
     "Anchor the FIRST reply on this requested style: " + gjLab(GJ_STYLE, style) + ". " + gjStyleRule(style) + " " +
@@ -1457,10 +1483,10 @@ function gjReplySystem(style, relation, strength, emotion, formality){
     "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
     '{"mood":"...","replies":[{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."}]}\n' +
     '"mood" is one lowercase word from the list above. Put it first, before the longer fields, in case the response is ever cut short. ' +
-    '"text" should split into 2-3 short lines separated by \\n whenever the reply has more than one beat (see above) — one line only when there\'s genuinely just a single thought.';
+    gjBurstJsonHint(burst);
 }
-function gjRewriteSystem(style, relation, strength, emotion, formality){
-  return GJ_RULES + "\n\n" +
+function gjRewriteSystem(style, relation, strength, emotion, formality, burst){
+  return GJ_RULES + "\n\n" + gjBurstRule(burst) + "\n\n" +
     "You are rewriting a person's own draft message so it sounds more natural, keeping their intended meaning intact. " +
     "Produce exactly 3 different rewritten versions — genuinely different phrasing and tone, not the same sentence three times. " +
     "Anchor the FIRST version on this requested style: " + gjLab(GJ_STYLE, style) + ". " + gjStyleRule(style) + " " +
@@ -1474,7 +1500,7 @@ function gjRewriteSystem(style, relation, strength, emotion, formality){
     "if this exact message were sent. Same language and register as the message itself. A real guess, not a generic one.\n\n" +
     "Output ONLY strict JSON, no markdown fences, no commentary, in exactly this shape:\n" +
     '{"replies":[{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."},{"label":"...","text":"...","predicted":"..."}]}\n' +
-    '"text" should split into 2-3 short lines separated by \\n whenever the reply has more than one beat (see above) — one line only when there\'s genuinely just a single thought.';
+    gjBurstJsonHint(burst);
 }
 function gjTranslateSystem(){
   return "You translate between English, Roman Gujlish, and Hinglish, preserving natural meaning and tone rather than translating word-for-word. " +
@@ -1539,16 +1565,16 @@ function gjRunGenerate(){
       context = mode === "reply" ? gjCtx.trim() : "";
     }
     cfg = { lang:S.gj.lang, style:S.gj.style, length:S.gj.length,
-      relation:S.gj.relation, strength:S.gj.strength, emotion:S.gj.emotion, formality:S.gj.formality,
+      relation:S.gj.relation, strength:S.gj.strength, emotion:S.gj.emotion, formality:S.gj.formality, burst:S.gj.burst,
       conv: mode === "reply" ? S.gj.activeConv : "" };
-    sys = mode === "reply" ? gjReplySystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion, S.gj.formality)
-                           : gjRewriteSystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion, S.gj.formality);
+    sys = mode === "reply" ? gjReplySystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion, S.gj.formality, S.gj.burst)
+                           : gjRewriteSystem(S.gj.style, S.gj.relation, S.gj.strength, S.gj.emotion, S.gj.formality, S.gj.burst);
     user = (mode === "reply" ? "Incoming message: " : "Message to rewrite: ") + JSON.stringify(input) + "\n\n" +
       (mode === "reply" && context ? "Recent conversation, oldest first:\n" + context + "\n\n" : "") +
       "Output language: " + gjLab(GJ_LANG, S.gj.lang) + " — " + gjLangRule(S.gj.lang) + "\n" +
-      "Length: " + gjLab(GJ_LENGTH, S.gj.length) + " — " + gjLengthRule(S.gj.length) + "\n" +
-      "Reminder: the multi-beat burst rule from above still applies in this output language — splitting into separate short lines is not " +
-      "an English-only trick, real Gujlish/Hinglish texting fragments exactly the same way.";
+      "Length: " + gjLab(GJ_LENGTH, S.gj.length) + " — " + gjLengthRule(S.gj.length) +
+      (S.gj.burst !== "off" ? "\nReminder: the multi-beat burst rule from above still applies in this output language — splitting into separate short lines is not " +
+      "an English-only trick, real Gujlish/Hinglish texting fragments exactly the same way." : "");
     maxT = 1500;   /* romanized Gujlish tokenizes inefficiently; the predicted-reply field adds real length too */
   }
 
@@ -1908,6 +1934,7 @@ function gjCfgHTML(){
     '<div class="cfgsection">' +
       '<div class="cfgsectionlab">More</div>' +
       gjSelectRow("Reply boldness", GJ_STRENGTH_LIST, S.gj.strength, "strength", true) +
+      gjSelectRow("Message bursts", GJ_BURST, S.gj.burst, "burst") +
     '</div>';
 }
 function gjWirePills(){
@@ -2286,6 +2313,7 @@ function gjWireHistRows(){
         if(h.cfg.strength) S.gj.strength = h.cfg.strength;
         if(h.cfg.emotion) S.gj.emotion = h.cfg.emotion;
         if(h.cfg.formality) S.gj.formality = h.cfg.formality;
+        if(h.cfg.burst) S.gj.burst = h.cfg.burst;
         if(h.mode === "reply") S.gj.activeConv = h.cfg.conv || "";
       }
       if(h.mode === "translate"){
