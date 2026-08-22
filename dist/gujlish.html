@@ -365,11 +365,12 @@ body{
 .ctxwrap{ margin-top:12px; }
 .ctxin{ margin-top:10px; font-size:15px; }
 
-/* ---------- config rows + bottom sheet -----------------------------
-   Language/Style/Talking-to/Emotion/Texting/Boldness used to all show
-   as full pill rows at once; now each collapses to one row (current
-   value + chevron) that opens a picker sheet, so the panel scans in a
-   glance on a phone instead of unrolling every option every time. */
+/* ---------- config rows (native selects) ---------------------------
+   Language/Style/Talking-to/Emotion/Texting/Boldness are native
+   <select> elements grouped under section labels — a custom bottom-
+   sheet picker was tried here but the plain OS picker (checkmarks,
+   native feel) tested better, so this reverted to selects. Length
+   stays as inline pills since three options never needed a dropdown. */
 
 .cfgsection{ margin-top:20px; }
 .cfgsection:first-child{ margin-top:16px; }
@@ -377,48 +378,21 @@ body{
   font:600 10.5px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase;
   color:var(--cotton-4); margin-bottom:8px;
 }
-.cfgrow{
-  display:flex; align-items:center; width:100%; gap:10px;
-  padding:13px 4px; border:0; border-bottom:1px solid var(--edge); background:none; cursor:pointer;
-  color:var(--cotton); font:inherit; text-align:left;
-  transition:background .16s;
+.selrow{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:13px 4px; border-bottom:1px solid var(--edge);
 }
-.cfgsection .cfgrow:last-child{ border-bottom:0; }
-.cfgrow:hover{ background:var(--glass); }
-.cfgrow-lab{ flex:1; font-size:14.5px; color:var(--cotton-2); }
-.cfgrow-val{ font-size:14.5px; font-weight:500; color:var(--cotton); }
-.cfgrow .gicon{ color:var(--cotton-4); }
+.cfgsection .selrow:last-child{ border-bottom:0; }
+.selrow-lab{ font-size:14.5px; color:var(--cotton-2); }
+.selrow-select{
+  font:500 14.5px/1.2 var(--sans); color:var(--cotton);
+  background:none; border:0; text-align:right;
+}
 /* Length keeps its inline pill row, just under the same row rhythm as
-   the sheet rows around it rather than the old always-expanded block */
+   the select rows around it rather than the old always-expanded block */
 .cfgsection > .cfggroup{ margin-top:0; padding:10px 4px; border-bottom:1px solid var(--edge); }
 .cfgsection > .cfggroup:last-child{ border-bottom:0; }
 .cfgsection > .cfggroup .cfglab{ margin-bottom:9px; }
-
-.sheetoverlay{
-  position:fixed; inset:0; z-index:50; display:flex; align-items:flex-end;
-  background:rgba(0,0,0,.5);
-}
-.sheet{
-  width:100%; max-height:70vh; overflow-y:auto;
-  background:var(--ink-2); border-top:1px solid var(--edge);
-  border-radius:20px 20px 0 0; padding:8px 4px calc(14px + env(safe-area-inset-bottom,0px));
-}
-.sheethead{
-  display:flex; align-items:center; justify-content:space-between;
-  padding:10px 14px 12px; font:600 15px/1 var(--sans); color:var(--cotton);
-}
-.sheetlist{ display:flex; flex-direction:column; padding:0 6px; }
-.sheetopt{
-  display:flex; align-items:center; justify-content:space-between;
-  width:100%; padding:14px 12px; border:0; border-radius:12px; background:none; cursor:pointer;
-  color:var(--cotton-2); font:500 15px/1.2 var(--sans); text-align:left;
-  transition:background .16s;
-}
-.sheetopt:hover{ background:var(--glass); }
-.sheetopt.on{ color:var(--kesari-hi); }
-.sheetopt .gicon{ color:var(--kesari); }
-.sheetopt .guj{ font-family:var(--guj); font-size:16px; }
-.sheetopt-cost{ color:var(--cotton-4); font-size:13px; font-weight:400; }
 
 .linkbtn{
   background:none; border:none; cursor:pointer; padding:6px 2px;
@@ -1022,9 +996,6 @@ function topBar(){
 
 function go(name){
   clearTimeout(gjDebounce);   /* a pending auto-translate must not fire after you've navigated off */
-  if(gjSheetOpen || gjModelSheetOpen) gjUnlockScroll();
-  gjSheetOpen = null;
-  gjModelSheetOpen = false;
   screen = name;
   paintShell();
   ({ translate:renderTranslate, settings:renderSettings })[name]();
@@ -1123,28 +1094,6 @@ var gjText = { translate:"", reply:"", rewrite:"" };
 var gjCtx = "";
 var gjCtxOpen = false;
 var gjNewConvOpen = false;
-var gjSheetOpen = null;  /* which config bottom-sheet is open — a GJ_SHEETS key, or null */
-var gjModelSheetOpen = false;  /* Settings' own model picker sheet — separate screen, separate state */
-
-/* A sheet is a fixed-position overlay, but without this the page behind
-   it still scrolls along with a touch-drag inside the sheet's own list
-   on mobile, and a full re-render on open/select/close can otherwise
-   leave you scrolled somewhere you weren't. Locks the body in place at
-   its current scroll offset while a sheet is open, and restores that
-   exact offset — not the top of the page — once it closes. */
-var gjScrollLockY = 0;
-function gjLockScroll(){
-  gjScrollLockY = window.scrollY;
-  document.body.style.position = "fixed";
-  document.body.style.top = "-" + gjScrollLockY + "px";
-  document.body.style.width = "100%";
-}
-function gjUnlockScroll(){
-  document.body.style.position = "";
-  document.body.style.top = "";
-  document.body.style.width = "";
-  window.scrollTo(0, gjScrollLockY);
-}
 var gjTopicState = null;   /* { convId, busy, items:[...], error } — topic-suggestion generator */
 var gjResults = null;    /* { mode, cards:[{label,text}], note, detected, error } — translate mode only */
 var gjActiveGen = { reply:null, rewrite:null };  /* the live history entry backing each mode's carousel */
@@ -1861,109 +1810,49 @@ function gjPillRow(label, opts, cur, key){
     }).join("") + '</div>' +
   '</div>';
 }
-/* Language/Style/Talking-to/Emotion/Texting/Boldness used to all show as
-   full pill rows at once — every option, all the time, which got long
-   and hard to scan on a phone. Now each is a single row (current value +
-   chevron) that opens a bottom sheet to pick from; only Length stays as
-   inline pills since three options never needed the extra tap. */
-var GJ_SHEETS = {
-  lang:     { title:"Language",       list:function(){ return gjLangOpts(); },  field:"lang" },
-  style:    { title:"Reply style",    list:function(){ return GJ_STYLE; },      field:"style" },
-  relation: { title:"Talking to",     list:function(){ return GJ_RELATION; },   field:"relation" },
-  emotion:  { title:"Emotion",        list:function(){ return GJ_EMOTION; },    field:"emotion" },
-  texting:  { title:"Texting style",  list:function(){ return GJ_TEXTING; },    field:"texting" },
-  strength: { title:"Reply boldness", list:function(){ return GJ_STRENGTH_LIST; }, field:"strength", numeric:true }
-};
-function gjCfgRow(label, valueLabel, sheetKey){
-  return '<button class="cfgrow" data-sheet="' + sheetKey + '">' +
-    '<span class="cfgrow-lab">' + esc(label) + '</span>' +
-    '<span class="cfgrow-val">' + esc(valueLabel) + '</span>' +
-    gjIcon("chevronRight", 14) +
-  '</button>';
-}
-function gjSheetHTML(){
-  if(!gjSheetOpen) return "";
-  var def = GJ_SHEETS[gjSheetOpen];
-  if(!def) return "";
-  var cur = S.gj[def.field];
-  return '<div class="sheetoverlay" id="gjSheetOverlay">' +
-    '<div class="sheet panelenter">' +
-      '<div class="sheethead"><span>' + esc(def.title) + '</span>' +
-        '<button class="linkbtn sm" id="gjSheetDone">Done</button></div>' +
-      '<div class="sheetlist">' + def.list().map(function(o){
-        var on = def.numeric ? (+cur === +o.id) : (cur === o.id);
-        return '<button class="sheetopt' + (on ? " on" : "") + '" data-sheetval="' + o.id + '">' +
-          '<span' + (looksGujScript(o.lab) ? ' class="guj"' : "") + '>' + esc(o.lab) + '</span>' + (on ? gjIcon("check", 16) : "") +
-        '</button>';
-      }).join("") + '</div>' +
-    '</div>' +
+/* Language/Style/Talking-to/Emotion/Texting/Boldness are native <select>
+   elements — a custom bottom-sheet picker was tried here, but the plain
+   OS picker (checkmarks, native feel) tested better, so this reverted
+   back to selects grouped under section labels rather than the old
+   always-expanded pill rows. Length stays as inline pills since three
+   options never needed a dropdown at all. */
+function gjSelectRow(label, opts, cur, key, numeric){
+  return '<div class="selrow">' +
+    '<label class="selrow-lab" for="sel-' + key + '">' + esc(label) + '</label>' +
+    '<select class="selrow-select" id="sel-' + key + '" data-selkey="' + key + '"' + (numeric ? ' data-numeric="1"' : "") + '>' +
+      opts.map(function(o){
+        var selected = numeric ? (+cur === +o.id) : (cur === o.id);
+        return '<option value="' + esc(o.id) + '"' + (selected ? " selected" : "") + '>' + esc(o.lab) + '</option>';
+      }).join("") +
+    '</select>' +
   '</div>';
 }
-/* Settings' own model sheet — same sheetopt/sheetoverlay styling as the
-   Translate-screen config sheets, but scoped to S.ai.model on a
-   different screen, so it isn't part of the GJ_SHEETS/gjSheetOpen
-   system above. Keeps the same verified/"not yet verified" split the
-   native <select> used to show via optgroup. */
-function gjModelSheetHTML(models){
-  var verified = models.filter(function(m){ return m.cost !== "Unverified"; });
-  var unverified = models.filter(function(m){ return m.cost === "Unverified"; });
-  function optBtn(m){
-    var on = S.ai.model === m.id;
-    return '<button class="sheetopt' + (on ? " on" : "") + '" data-modelval="' + esc(m.id) + '">' +
-      '<span>' + esc(m.lab) + (m.cost !== "Unverified" ? ' <span class="sheetopt-cost">— ' + esc(m.cost) + '</span>' : "") + '</span>' +
-      (on ? gjIcon("check", 16) : "") +
-    '</button>';
-  }
-  return '<div class="sheetoverlay" id="gjModelSheetOverlay">' +
-    '<div class="sheet panelenter">' +
-      '<div class="sheethead"><span>Model</span><button class="linkbtn sm" id="gjModelSheetDone">Done</button></div>' +
-      '<div class="sheetlist">' +
-        '<div class="cfgsectionlab" style="padding:8px 12px 4px">Models</div>' +
-        verified.map(optBtn).join("") +
-        (unverified.length ? '<div class="cfgsectionlab" style="padding:14px 12px 4px">Not yet verified</div>' + unverified.map(optBtn).join("") : "") +
-      '</div>' +
-    '</div>' +
-  '</div>';
+function gjWireSelects(){
+  each($$("[data-selkey]"), function(sel){
+    sel.onchange = function(){
+      var key = sel.getAttribute("data-selkey");
+      S.gj[key] = sel.hasAttribute("data-numeric") ? +sel.value : sel.value;
+      save(); sfxTap();
+    };
+  });
 }
 function gjCfgHTML(){
   return '<div class="cfgsection">' +
       '<div class="cfgsectionlab">Reply settings</div>' +
-      gjCfgRow("Language", gjLab(gjLangOpts(), S.gj.lang), "lang") +
-      gjCfgRow("Style", gjLab(GJ_STYLE, S.gj.style), "style") +
+      gjSelectRow("Language", gjLangOpts(), S.gj.lang, "lang") +
+      gjSelectRow("Style", GJ_STYLE, S.gj.style, "style") +
       gjPillRow("Length", GJ_LENGTH, S.gj.length, "length") +
-      gjCfgRow("Talking to", gjLab(GJ_RELATION, S.gj.relation), "relation") +
-      gjCfgRow("Emotion", gjLab(GJ_EMOTION, S.gj.emotion), "emotion") +
+      gjSelectRow("Talking to", GJ_RELATION, S.gj.relation, "relation") +
+      gjSelectRow("Emotion", GJ_EMOTION, S.gj.emotion, "emotion") +
     '</div>' +
     '<div class="cfgsection">' +
       '<div class="cfgsectionlab">More</div>' +
-      gjCfgRow("Texting style", gjLab(GJ_TEXTING, S.gj.texting), "texting") +
-      gjCfgRow("Reply boldness", GJ_STRENGTH_LAB[S.gj.strength] || "Balanced", "strength") +
-    '</div>' +
-    gjSheetHTML();
-}
-function gjWireSheets(){
-  each($$("[data-sheet]"), function(b){
-    b.onclick = function(){ gjSheetOpen = b.getAttribute("data-sheet"); gjLockScroll(); sfxTap(); renderTranslate(); };
-  });
-  var overlay = $("#gjSheetOverlay");
-  if(!overlay) return;
-  overlay.onclick = function(e){ if(e.target === overlay){ gjSheetOpen = null; gjUnlockScroll(); sfxTap(); renderTranslate(); } };
-  var done = $("#gjSheetDone");
-  if(done) done.onclick = function(){ gjSheetOpen = null; gjUnlockScroll(); sfxTap(); renderTranslate(); };
-  each($$("[data-sheetval]"), function(b){
-    b.onclick = function(){
-      var def = GJ_SHEETS[gjSheetOpen];
-      var val = b.getAttribute("data-sheetval");
-      S.gj[def.field] = def.numeric ? +val : val;
-      gjSheetOpen = null;
-      gjUnlockScroll();
-      save(); sfxTap();
-      renderTranslate();
-    };
-  });
+      gjSelectRow("Texting style", GJ_TEXTING, S.gj.texting, "texting") +
+      gjSelectRow("Reply boldness", GJ_STRENGTH_LIST, S.gj.strength, "strength", true) +
+    '</div>';
 }
 function gjWirePills(){
-  gjWireSheets();
+  gjWireSelects();
   ["length", "trlang"].forEach(function(key){
     each($$("[data-" + key + "]"), function(b){
       b.onclick = function(){
@@ -2445,7 +2334,6 @@ function renderTranslate(){
     b.onclick = function(){
       clearTimeout(gjDebounce);
       S.gj.mode = b.getAttribute("data-mode");
-      gjSheetOpen = null;
       save(); sfxTap(); gjResults = null; gjBusy = false; gjReqId++;
       renderTranslate();
     };
@@ -2506,8 +2394,22 @@ function renderSettings(){
       '<div class="hint">Get one at openrouter.ai → Keys. Paste it here, not into a chat window.</div>' +
     '</div>' +
     '<div class="field">' +
-      gjCfgRow("Model", gjLab(models, S.ai.model), "aimodel") +
-      '<div class="hint" id="mnote">' + esc((models.filter(function(m){ return m.id === S.ai.model; })[0] || {}).note || "") + '</div>' +
+      '<label for="m">Model</label>' +
+      '<select id="m">' +
+        '<optgroup label="Models">' + models.filter(function(m){ return m.cost !== "Unverified"; }).map(function(m){
+          return '<option value="' + esc(m.id) + '"' + (S.ai.model === m.id ? " selected" : "") +
+                 '>' + esc(m.lab) + ' — ' + esc(m.cost) + '</option>';
+        }).join("") + '</optgroup>' +
+        /* these five were added on request without a confirmed price or
+           quality check — "Unverified" sitting in the price slot read
+           like a real cost, so they get their own group instead and no
+           fake price at all; the note below still spells out the caveat */
+        '<optgroup label="Not yet verified">' + models.filter(function(m){ return m.cost === "Unverified"; }).map(function(m){
+          return '<option value="' + esc(m.id) + '"' + (S.ai.model === m.id ? " selected" : "") +
+                 '>' + esc(m.lab) + '</option>';
+        }).join("") + '</optgroup>' +
+      '</select>' +
+      '<div class="hint" id="mnote"></div>' +
     '</div>' +
     '<div class="rowbtns">' +
       '<button class="btn ghost" id="clearKey">Remove key</button>' +
@@ -2553,31 +2455,24 @@ function renderSettings(){
       '<button class="pill' + (S.sound ? " on" : "") + '" id="sndOn">On</button>' +
       '<button class="pill' + (S.sound ? "" : " on") + '" id="sndOff">Off</button>' +
     '</div>' +
-  '</div>' +
-  (gjModelSheetOpen ? gjModelSheetHTML(models) : "");
+  '</div>';
 
   $("#sndOn").onclick = function(){ S.sound = true; save(); sfxTap(); renderSettings(); };
   $("#sndOff").onclick = function(){ S.sound = false; save(); renderSettings(); };
 
-  var modelRow = $('[data-sheet="aimodel"]');
-  if(modelRow) modelRow.onclick = function(){ gjModelSheetOpen = true; sfxTap(); renderSettings(); };
-  var modelOverlay = $("#gjModelSheetOverlay");
-  if(modelOverlay){
-    modelOverlay.onclick = function(e){ if(e.target === modelOverlay){ gjModelSheetOpen = false; sfxTap(); renderSettings(); } };
-    var mDone = $("#gjModelSheetDone");
-    if(mDone) mDone.onclick = function(){ gjModelSheetOpen = false; sfxTap(); renderSettings(); };
-    each($$("[data-modelval]"), function(b){
-      b.onclick = function(){
-        S.ai.model = b.getAttribute("data-modelval");
-        gjModelSheetOpen = false;
-        save(); sfxTap();
-        renderSettings();
-      };
-    });
+  function showNote(){
+    var sel = $("#m"), box = $("#mnote");
+    if(!sel || !box) return;
+    var m = models.filter(function(x){ return x.id === sel.value; })[0];
+    box.innerHTML = m ? esc(m.note) : "";
   }
+  var msel = $("#m");
+  if(msel) msel.onchange = showNote;
+  showNote();
 
   $("#saveKey").onclick = function(){
     S.ai.key = $("#k").value.trim();
+    S.ai.model = $("#m").value;
     save();
     var box = $("#aiStatus");
     if(!S.ai.key){ box.innerHTML = '<div class="status"><span class="dot off"></span>No key saved.</div>'; paintShell(); return; }

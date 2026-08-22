@@ -3,13 +3,13 @@
    else — OpenRouter, ElevenLabs — is left completely alone; a service
    worker sitting in front of those calls would be actively wrong.
 
-   1787397975 is substituted with a real timestamp by deploy.sh on every
+   1787398628 is substituted with a real timestamp by deploy.sh on every
    deploy (this file, as checked in, is the template) — a fixed
    version string here meant the old cached shell never actually got
    evicted from one deploy to the next, just outvoted by the
    network-first fetch handler below, which isn't the same thing on a
    browser that serves this file itself from its own HTTP cache first. */
-var CACHE = "bolo-gujlish-shell-1787397975";
+var CACHE = "bolo-gujlish-shell-1787398628";
 
 self.addEventListener("install", function(event){
   event.waitUntil(
