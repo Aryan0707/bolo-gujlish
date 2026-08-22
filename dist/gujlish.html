@@ -2498,6 +2498,11 @@ function renderSettings(){
       '<button class="btn ghost" id="clearKey">Remove key</button>' +
       '<button class="btn" id="saveKey">Save &amp; test</button>' +
     '</div>' +
+    (S.ai.key ? '<div class="hintline" id="copyKeyRow" style="margin-top:12px">' +
+      '<button class="linkbtn" id="copyKeyKb">Copy key for keyboard app</button> — ' +
+      'the keyboard and share extension keep their own separate key (different app sandbox), ' +
+      'so paste it once into the FlashReply keyboard app\'s Settings screen.' +
+    '</div>' : "") +
     '<div id="aiStatus" style="margin-top:12px"></div>' +
   '</div>' +
 
@@ -2575,6 +2580,9 @@ function renderSettings(){
     $("#aiStatus").innerHTML = '<div class="status"><span class="dot off"></span>Key removed from this browser.</div>';
     sfxTap(); paintShell();
   };
+
+  var copyKeyKb = $("#copyKeyKb");
+  if(copyKeyKb) copyKeyKb.onclick = function(){ copyText(S.ai.key, copyKeyKb); };
 
   $("#saveEk").onclick = function(){
     S.eleven.key = $("#ek").value.trim();
