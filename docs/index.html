@@ -448,14 +448,22 @@ body{
 }
 .rcard-txt{ font-family:var(--serif); font-size:19px; line-height:1.5; color:var(--cotton); display:flex; flex-direction:column; gap:7px; }
 .rcard-txt.guj{ font-family:var(--guj); font-size:20px; }
-/* A burst of 2-3 fragments (real texting fires off short separate
+/* A burst of 2-5 fragments (real texting fires off short separate
    messages, not one polished sentence) gets its own little bubble per
    line, mimicking separate WhatsApp bubbles. A single line stays plain
-   text — no bubble chrome needed when there's nothing to distinguish it from. */
+   text — no bubble chrome needed when there's nothing to distinguish it from.
+   Each line is its own button — tap one to copy just that line, since no
+   browser can press Send in WhatsApp for you across a whole burst at once. */
+.burstline{
+  display:block; width:100%; text-align:left; background:none; border:0;
+  font:inherit; color:inherit; padding:0; cursor:pointer;
+}
 .burstline:not(:only-child){
   background:var(--glass); border:1px solid var(--edge);
   padding:8px 13px; border-radius:14px; align-self:flex-start; max-width:92%;
 }
+.burstline:not(:only-child):hover{ border-color:var(--edge-hi); }
+.burstline:not(:only-child):active{ transform:scale(.97); }
 .rcard-actions{ display:flex; gap:8px; margin-top:14px; }
 .rcard-btn{
   padding:8px 16px; border-radius:11px; border:1px solid var(--edge); cursor:pointer;
@@ -1689,8 +1697,8 @@ function gjRenderCarousel(box, mode){
               (i === 0 && multi ? '<span class="rcard-badge">Recommended</span>' : "") +
             '</div>' +
             '<div class="rcard-txt' + (looksGujScript(c.text) ? " guj" : "") + '">' +
-              c.text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(l){
-                return '<div class="burstline">' + esc(l) + '</div>';
+              c.text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(l, li){
+                return '<button class="burstline" data-blcopy="' + i + ':' + li + '">' + esc(l) + '</button>';
               }).join("") +
             '</div>' +
             '<div class="rcard-actions">' +
@@ -1733,6 +1741,16 @@ function gjRenderCarousel(box, mode){
         /* copying is the closest signal we get to "I'm using this one" —
            that's what actually grows the conversation's memory */
         if(mode === "reply" && S.gj.activeConv) gjAppendTurn(S.gj.activeConv, "me", text);
+      };
+    });
+    /* A burst is several separate messages, not one — no browser can
+       press Send in WhatsApp for you, so the practical flow is: tap a
+       line to copy just it, paste + send there, come back, tap the next. */
+    each($$("#gjOut [data-blcopy]"), function(b){
+      b.onclick = function(){
+        var parts = b.getAttribute("data-blcopy").split(":");
+        var lines = curCards[+parts[0]].text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+        copyText(lines[+parts[1]], b);
       };
     });
     each($$("#gjOut [data-gshare]"), function(b){

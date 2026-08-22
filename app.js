@@ -963,8 +963,8 @@ function gjRenderCarousel(box, mode){
               (i === 0 && multi ? '<span class="rcard-badge">Recommended</span>' : "") +
             '</div>' +
             '<div class="rcard-txt' + (looksGujScript(c.text) ? " guj" : "") + '">' +
-              c.text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(l){
-                return '<div class="burstline">' + esc(l) + '</div>';
+              c.text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean).map(function(l, li){
+                return '<button class="burstline" data-blcopy="' + i + ':' + li + '">' + esc(l) + '</button>';
               }).join("") +
             '</div>' +
             '<div class="rcard-actions">' +
@@ -1007,6 +1007,16 @@ function gjRenderCarousel(box, mode){
         /* copying is the closest signal we get to "I'm using this one" —
            that's what actually grows the conversation's memory */
         if(mode === "reply" && S.gj.activeConv) gjAppendTurn(S.gj.activeConv, "me", text);
+      };
+    });
+    /* A burst is several separate messages, not one — no browser can
+       press Send in WhatsApp for you, so the practical flow is: tap a
+       line to copy just it, paste + send there, come back, tap the next. */
+    each($$("#gjOut [data-blcopy]"), function(b){
+      b.onclick = function(){
+        var parts = b.getAttribute("data-blcopy").split(":");
+        var lines = curCards[+parts[0]].text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+        copyText(lines[+parts[1]], b);
       };
     });
     each($$("#gjOut [data-gshare]"), function(b){
