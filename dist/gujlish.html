@@ -1415,9 +1415,12 @@ function gjBurstRule(burst){
     "'etlo gusso kem' / 'Tane jovani utaval hoy' / 'etle vaar vaar puchu chu' — five short blunt bursts, not one line. Default to splitting into " +
     maxLines + " short separate lines (joined by \\n in the same field) whenever a reply has more than one beat — stay on one line only when " +
     "there is genuinely just a single thought with nothing else attached. " +
-    "Never join two clauses inside one line with a comma or a connector like 'ke' (or) either — that comma is itself the seam between two beats, " +
-    "so split there instead. For example write 'Tare kai kaam hatu' as its own line, then 'ke bas vaat karvi hati?' as the next line — never " +
-    "'Tare kai kaam hatu, ke bas vaat karvi hati?' joined together on one line with a comma.";
+    "HARD RULE: never write a comma inside a single line of the reply. A comma is not punctuation here — it's a sign you're about to put two " +
+    "beats on one line, which you must not do. The instant you're about to type a comma, put a line break there instead, including right after " +
+    "an opening word like 'Haa'/'Ha'/'Arey' — that opener gets split onto its own line too, not left attached to what follows with a comma. " +
+    "For example, replying about coming to office tomorrow becomes four separate lines: 'Haa' / 'kal jarur aavish' / 'Tare kai kaam hatu' / " +
+    "'ke bas vaat karvi hati?' — never 'Haa, kal jarur aavish' or 'Tare kai kaam hatu, ke bas vaat karvi hati?' joined on one line with a comma. " +
+    "The only exception is a plain list of items in one breath (like 'bread, milk, eggs') where the commas aren't separating distinct beats at all.";
   if(burst === "longer")
     rule += " Longer mode's ceiling goes up to 5 lines when the content genuinely supports that many distinct beats — but don't force every burst " +
       "up to the max. The real count should vary naturally from message to message depending on how many genuine beats are actually present: " +
